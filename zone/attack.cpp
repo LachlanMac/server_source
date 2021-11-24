@@ -2421,7 +2421,7 @@ bool NPC::Death(Mob* killer_mob, int32 damage, uint16 spell, EQ::skills::SkillTy
 			);
 			task_manager->HandleUpdateTasksOnKill(give_exp_client, GetNPCTypeID());
 		}
-
+		//if is a raid...
 		if (kr) {
 			if (!IsLdonTreasure && MerchantType == 0) {
 				kr->SplitExp((finalxp), this);
@@ -2468,6 +2468,7 @@ bool NPC::Death(Mob* killer_mob, int32 damage, uint16 spell, EQ::skills::SkillTy
 			// End QueryServ Logging
 
 		}
+		//if the client is in a group
 		else if (give_exp_client->IsGrouped() && kg != nullptr) {
 			if (!IsLdonTreasure && MerchantType == 0) {
 				kg->SplitExp((finalxp), this);

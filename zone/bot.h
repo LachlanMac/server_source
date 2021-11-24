@@ -596,7 +596,23 @@ public:
 	int32 GetBasePR() { return _basePR; }
 	int32 GetBaseDR() { return _baseDR; }
 	int32 GetBaseCorrup() { return _baseCorrup; }
+	uint32 GetExperience(){return _experience;}
+	uint32 GetAAExperience() {return _aaExperience;}
+	uint32 CalculateAAPoints();
+	uint32 GetAAPercentage() {return _aaPercentage;}
+	void AddExperience(uint32 exp);
+	void SetExperience(uint32 experience){_experience = experience;}
+	void SetAAExperience(uint32 experience){_aaExperience = experience;}
+	void SetAAPercentage(uint32 percentage){_aaPercentage = percentage;}
 
+	void SetLevelFromExperience();
+	
+
+	//logic for bot AI
+	bool IsTank();
+	bool IsCaster();
+	
+	
 protected:
 	virtual void PetAIProcess();
 	virtual void BotMeditate(bool isSitting);
@@ -700,6 +716,10 @@ private:
 	uint16 _baseRace;	// Necessary to preserve the race otherwise bots get their race updated in the db when they get an illusion.
 	uint8 _baseGender;	// Bots gender. Necessary to preserve the original value otherwise it can be changed by illusions.
 
+	// Bot Leveling Variables
+	uint32 _experience;
+	uint32 _aaExperience;
+	uint32 _aaPercentage;
 	// Class Methods
 	void LoadAAs();
 	int32 acmod();

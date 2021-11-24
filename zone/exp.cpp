@@ -1043,8 +1043,10 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 		groupexp += (uint32)((float)exp * groupmod * (RuleR(Character, GroupExpMultiplier)));
 
 	int conlevel = Mob::GetLevelCon(maxlevel, other->GetLevel());
-	if(conlevel == CON_GRAY)
-		return;	//no exp for greenies...
+	
+	//this has been disabled due to leveling lower level bots who will want exp
+	//if(conlevel == CON_GRAY)		
+	//	return;	//no exp for greenies...
 
 	if (membercount == 0)
 		return;
@@ -1054,7 +1056,7 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 		{
 			Client *cmember = members[i]->CastToClient();
 			// add exp + exp cap
-			int16 diff = cmember->GetLevel() - maxlevel;
+			int16 diff = cmember->GetLevel() - maxlevel;  //the difference between the highest level person in the
 			int16 maxdiff = -(cmember->GetLevel()*15/10 - cmember->GetLevel());
 				if(maxdiff > -5)
 					maxdiff = -5;
@@ -1064,6 +1066,23 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 				cmember->AddEXP( tmp < tmp2 ? tmp : tmp2, conlevel );
 			}
 		}
+		#ifdef BOTS
+		if(members[i] != nullptr && members[i]->IsBot()){ // If Group Member is Bot
+			Bot *cmember = members[i]->CastToBot();
+			// add exp + exp cap
+			
+			uint32 tmp = (cmember->GetLevel()+3) * (cmember->GetLevel()+3) * 75 * 35 / 10;
+			uint32 tmp2 = groupexp / membercount;
+
+			uint32 exp = tmp < tmp2 ? tmp : tmp2;
+			
+			if (RuleB(Character, UseXPConScaling))
+			{	
+				exp = exp * GetConLevelModifierPercent(conlevel);
+			}
+			cmember->AddExperience(exp);
+		}
+		#endif				
 	}
 }
 
