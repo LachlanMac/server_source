@@ -5083,7 +5083,7 @@ void Mob::TrySkillProc(Mob *on, uint16 skill, uint16 ReuseTime, bool Success, ui
 
 				for (int i = 0; i < EFFECT_COUNT; i++) {
 
-					if (spells[base_spell_id].effect_id[i] == TrySkillProc || spells[base_spell_id].effect_id[i] == SE_SkillProcSuccess) {
+					if (spells[base_spell_id].effect_id[i] == TrySkillProc() || spells[base_spell_id].effect_id[i] == SE_SkillProcSuccess) {
 						proc_spell_id = spells[base_spell_id].base_value[i];
 						ProcMod = static_cast<float>(spells[base_spell_id].limit_value[i]);
 					}
@@ -5127,7 +5127,7 @@ void Mob::TrySkillProc(Mob *on, uint16 skill, uint16 ReuseTime, bool Success, ui
 				ProcMod = 0;
 
 				for (int i = 0; i < EFFECT_COUNT; i++) {
-					if (spells[base_spell_id].effect_id[i] == TrySkillProc || spells[base_spell_id].effect_id[i] == SE_SkillProcSuccess) {
+					if (spells[base_spell_id].effect_id[i] == TrySkillProc() || spells[base_spell_id].effect_id[i] == SE_SkillProcSuccess) {
 						proc_spell_id = spells[base_spell_id].base_value[i];
 						ProcMod = static_cast<float>(spells[base_spell_id].limit_value[i]);
 					}
@@ -5189,7 +5189,7 @@ void Mob::TrySkillProc(Mob *on, uint16 skill, uint16 ReuseTime, bool Success, ui
 						limit_value = effect.limit_value;
 						slot = effect.slot;
 
-						if (effect_id == TrySkillProc || effect_id == SE_SkillProcSuccess) {
+						if (effect_id == TrySkillProc() || effect_id == SE_SkillProcSuccess) {
 							proc_spell_id = base_value;
 							ProcMod = static_cast<float>(limit_value);
 						}
