@@ -208,12 +208,12 @@ void NPC::DescribeAggro(Client *towho, Mob *mob, bool verbose) {
 			||
 			(mob->GetPrimaryFaction() != GetPrimaryFaction() && mob->GetPrimaryFaction() == -4 && GetOwner() == nullptr)
 			||
-			fv == FACTION_THREATENLY
+			fv == FACTION_THREATENINGLY
 		)) {
 		towho->Message(Chat::White, "...%s faction not low enough. value='%s'", mob->GetName(), FactionValueToString(fv));
 		return;
 	}
-	if(fv == FACTION_THREATENLY) {
+	if(fv == FACTION_THREATENINGLY) {
 		towho->Message(Chat::White, "...%s threatening to me, so they only have a %d chance per check of attacking.", mob->GetName());
 	}
 
@@ -317,8 +317,8 @@ bool Mob::CheckWillAggro(Mob *mob) {
 	// Are we stupid or are they green
 	// and they don't have their gm flag on
 	int heroicCHA_mod = mob->itembonuses.HeroicCHA/25; // 800 Heroic CHA cap
-	if(heroicCHA_mod > THREATENLY_ARRGO_CHANCE)
-		heroicCHA_mod = THREATENLY_ARRGO_CHANCE;
+	if(heroicCHA_mod > THREATENINGLY_ARRGO_CHANCE)
+		heroicCHA_mod = THREATENINGLY_ARRGO_CHANCE;
 	if (RuleB(Aggro, UseLevelAggro) &&
 	(
 	//old InZone check taken care of above by !mob->CastToClient()->Connected()
@@ -337,8 +337,8 @@ bool Mob::CheckWillAggro(Mob *mob) {
 			(mob->GetPrimaryFaction() != GetPrimaryFaction() && mob->GetPrimaryFaction() == -4 && GetOwner() == nullptr)
 			||
 			(
-				fv == FACTION_THREATENLY
-				&& zone->random.Roll(THREATENLY_ARRGO_CHANCE - heroicCHA_mod)
+				fv == FACTION_THREATENINGLY
+				&& zone->random.Roll(THREATENINGLY_ARRGO_CHANCE - heroicCHA_mod)
 			)
 		)
 	)
@@ -372,7 +372,7 @@ bool Mob::CheckWillAggro(Mob *mob) {
 				||
 				(
 					fv == FACTION_THREATENLY
-					&& zone->random.Roll(THREATENLY_ARRGO_CHANCE - heroicCHA_mod)
+					&& zone->random.Roll(THREATENINGLY_ARRGO_CHANCE - heroicCHA_mod)
 				)
 			)
 		)
