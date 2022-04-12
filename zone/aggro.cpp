@@ -338,7 +338,7 @@ bool Mob::CheckWillAggro(Mob *mob) {
 			||
 			(
 				fv == FACTION_THREATENINGLY
-				&& zone->random.Roll(THREATENINGLY_ARRGO_CHANCE - heroicCHA_mod)
+				&& zone->random.Roll(THREATENINGLY_AGGRO_CHANCE - heroicCHA_mod)
 			)
 		)
 	)
