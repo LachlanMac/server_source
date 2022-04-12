@@ -595,7 +595,9 @@ void bot_command_taunt(Client *c, const Seperator *sep);
 void bot_command_track(Client *c, const Seperator *sep);
 void bot_command_view_combos(Client *c, const Seperator *sep);
 void bot_command_water_breathing(Client *c, const Seperator *sep);
-
+//Bot exp Commands
+void bot_command_exp(Client *c, const Seperator *sep);
+void bot_command_aa(Client *c, const Seperator *sep);
 
 // bot subcommands
 void bot_subcommand_bot_appearance(Client *c, const Seperator *sep);

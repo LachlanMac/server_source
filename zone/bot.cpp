@@ -9836,8 +9836,6 @@ void Bot::AddExperience(uint exp){
 				SendAppearancePacket(AT_WhoLevel, newLevel, true, true); // who level change
 			}
 	}
-
-
 }
 
 uint32 Bot::CalculateAAPoints(){

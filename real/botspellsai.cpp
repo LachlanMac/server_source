@@ -111,7 +111,7 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 					isPrimaryHealer = IsGroupHealer();
 				}
 
-				if(hpr < 95 || (tar->IsClient() && (hpr < 95)) || (botClass == BARD)) {
+				if(hpr < 75 || (tar->IsClient() && (hpr < 75)) || (botClass == BARD)) {
 					if(tar->GetClass() == NECROMANCER) {
 						// Give necromancers a chance to go lifetap something or cleric can spend too much mana on a necro
 						if(hpr >= 40) {
@@ -121,7 +121,7 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 
 					if(tar->GetClass() == SHAMAN) {
 						// Give shaman the chance to canni without wasting the cleric's mana
-						if(hpr >= 80) {
+						if(hpr >= 60) {
 							break;
 						}
 					}
@@ -132,29 +132,283 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 							hasAggro = true;
 						}
 
-						if(hpr < 35) {
+						if(hpr < 20) {
 							botSpell = GetBestBotSpellForFastHeal(this);
+							if (botSpell.SpellId == 0)
+								botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+							if (botSpell.SpellId == 0)
+								botSpell = GetFirstBotSpellForSingleTargetHeal(this);
 						}
-						else if(hpr >= 35 && hpr < 70){
-							if(GetNumberNeedingHealedInGroup(60, false) >= 3)
+						else if (hpr >= 20 && hpr < 50) {
+							if (tar->GetClass() == WARRIOR || tar->GetClass() == SHADOWKNIGHT || tar->GetClass() == PALADIN) {
+
+								if (hasAggro && hpr >= 40) {
+									botSpell = GetBestBotSpellForPercentageHeal(this);
+								}
+								else {
+									botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+								}
+
+								if (botSpell.SpellId == 0)
+									botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+							}
+							else {
+								botSpell = GetBestBotSpellForFastHeal(this);
+								if (botSpell.SpellId == 0)
+									botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+								if (botSpell.SpellId == 0)
+									botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+							}
+						}
+						else if(hpr >= 50 && hpr < 70){
+							if (GetNumberNeedingHealedInGroup(60, false) >= 3) {
 								botSpell = GetBestBotSpellForGroupHeal(this);
+							}
+							if (botSpell.SpellId == 0) { //if we didn't cast a group heal, we still need to get a spell
+								if (tar->GetClass() == WARRIOR || tar->GetClass() == SHADOWKNIGHT || tar->GetClass() == PALADIN) {
+									if (hasAggro) {
 
-							if(botSpell.SpellId == 0)
-								botSpell = GetBestBotSpellForPercentageHeal(this);
-						}
+										switch (this->GetBotStance()) {
+										case EQ::constants::stanceEfficient:
+											//Do nothing and wait for them to get a bit lower for a complete heal unless we have full mana
+											if(this->GetMPRatio() > 95.0 ){
+												if (!tar->FindType(SE_HealOverTime)) {
+												botSpell = GetBestBotSpellForHealOverTime(this);
+												if (botSpell.SpellId == 0)
+													botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+												}
+											}
+
+										case EQ::constants::stanceAggressive:
+											//Try to keep up with damage with regular heals
+
+											botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+											break;
+										case EQ::constants::stanceBalanced:
+											//Try to just put a heal over time on the tank and re-evaluate
+
+											if (!tar->FindType(SE_HealOverTime)) {
+												botSpell = GetBestBotSpellForHealOverTime(this);
+											
+												if (botSpell.SpellId == 0)
+													botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+										
+											}
+										
+											break;
+										case EQ::constants::stanceReactive:
+											botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+											break;
+										case EQ::constants::stanceBurn:
+											//Complete heal for burn
+											botSpell = GetBestBotSpellForPercentageHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+											break;
+										case EQ::constants::stanceBurnAE:
+											//Complete heal for burn
+											botSpell = GetBestBotSpellForPercentageHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+											break;
+										default:
+											
+											break;
+										}//end switch
+									}//end has aggro IF statement
+									else {
+										//if the tank doesn't have aggro
+										//and doesn't have a heal over time currently, top them off
+										if (!tar->FindType(SE_HealOverTime)) {
+											botSpell = GetBestBotSpellForHealOverTime(this);
+										}
+
+									}
+								}//if it isn't a tank, we will react accordinly...
+								else {//start else
+
+									if (hasAggro) {//start if
+										//start Switch
+										switch (this->GetBotStance()) {
+										case EQ::constants::stanceEfficient:
+											//a nontank has aggro, so even efficiently we should try to cast a heal over time on them
+											if (!tar->FindType(SE_HealOverTime)) {
+												botSpell = GetBestBotSpellForHealOverTime(this);
+												//if we dont find a heal over itme spell.
+												if (botSpell.SpellId == 0)
+													botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+											}
+
+										case EQ::constants::stanceAggressive:
+											//Try to keep up with damage with quick heals
+											botSpell = GetBestBotSpellForFastHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+											break;
+										case EQ::constants::stanceBalanced:
+											botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+											break;
+										case EQ::constants::stanceReactive:
+											botSpell = GetBestBotSpellForFastHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+											break;
+										case EQ::constants::stanceBurn:
+											//Complete heal for burn
+											botSpell = GetBestBotSpellForPercentageHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+											break;
+										case EQ::constants::stanceBurnAE:
+											//Complete heal for burn
+											botSpell = GetBestBotSpellForPercentageHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+											if (botSpell.SpellId == 0)
+												botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+											break;
+										default:
+											break;
+										}//end switch
+									}//End aggro if
+
+									//if it doens't have aggro, we'll just evaluate what we want to do...for now letes just heal over time
+
+									if (!tar->FindType(SE_HealOverTime))
+										botSpell = GetBestBotSpellForHealOverTime(this);
+								}//end non-tank needs heal
+							//We don't want to do anything here...
+							//if (botSpell.SpellId == 0) {
+							//	if (botSpell.SpellId == 0)
+							//		botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+							//
+							//	if (botSpell.SpellId == 0)
+							//		botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+							}//end if its spell id = 0...we already have a spell, so who cares
+
+						}//end HP block
+
 						else if(hpr >= 70 && hpr < 95){
-							if(GetNumberNeedingHealedInGroup(80, false) >= 3)
+							if (GetNumberNeedingHealedInGroup(80, false) >= 3) {
 								botSpell = GetBestBotSpellForGroupHealOverTime(this);
+							}
+							else if (tar->GetClass() == WARRIOR || tar->GetClass() == SHADOWKNIGHT || tar->GetClass() == PALADIN) {
+								//do nothing
 
-							if(hasAggro)
-								botSpell = GetBestBotSpellForPercentageHeal(this);
+								if (hasAggro) {
+									switch (this->GetBotStance()) {
+									case EQ::constants::stanceEfficient:
+										if(this->GetMPRatio() > 95.0 ){
+												if (!tar->FindType(SE_HealOverTime)) {
+												botSpell = GetBestBotSpellForHealOverTime(this);
+												if (botSpell.SpellId == 0)
+													botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+												}
+											}
+									case EQ::constants::stanceAggressive:
+										if (!tar->FindType(SE_HealOverTime))
+											botSpell = GetBestBotSpellForHealOverTime(this);
+
+										break;
+									case EQ::constants::stanceBalanced:
+									if(this->GetMPRatio() > 95.0 ){
+												if (!tar->FindType(SE_HealOverTime)) {
+												botSpell = GetBestBotSpellForHealOverTime(this);
+												if (botSpell.SpellId == 0)
+													botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+												}
+											}
+									case EQ::constants::stanceReactive:
+									if(this->GetMPRatio() > 95.0 ){
+												if (!tar->FindType(SE_HealOverTime)) {
+												botSpell = GetBestBotSpellForHealOverTime(this);
+												if (botSpell.SpellId == 0)
+													botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+												}
+											}
+									case EQ::constants::stanceBurn:
+										botSpell = GetBestBotSpellForFastHeal(this);
+										//if we dont have a fast heal, we really want to make sure no one dies
+										if (botSpell.SpellId == 0)
+											botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+										if (botSpell.SpellId == 0)
+											botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+
+										break;
+									
+									case EQ::constants::stanceBurnAE:
+										botSpell = GetBestBotSpellForFastHeal(this);
+										if (botSpell.SpellId == 0)
+											botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+										if (botSpell.SpellId == 0)
+											botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+										break;
+									default:
+										break;
+									}//end switch
+								}//doenst have aggro...
+								else {
+									//doesn't have aggro so do nothing
+								}
+							}//end of tanks
+							else {
+								if (hasAggro) {
+
+									switch (this->GetBotStance()) {
+									case EQ::constants::stanceEfficient:
+											if(this->GetMPRatio() > 95.0 ){
+												botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);	
+											}
+									case EQ::constants::stanceAggressive:
+										botSpell = GetBestBotSpellForFastHeal(this);
+										break;
+									case EQ::constants::stanceBalanced:
+										if (!tar->FindType(SE_HealOverTime))
+											botSpell = GetBestBotSpellForHealOverTime(this);
+									case EQ::constants::stanceReactive:
+										if (!tar->FindType(SE_HealOverTime))
+											botSpell = GetBestBotSpellForHealOverTime(this);
+									case EQ::constants::stanceBurn:
+										botSpell = GetBestBotSpellForFastHeal(this);
+										if (botSpell.SpellId == 0)
+											botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+										if (botSpell.SpellId == 0)
+											botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+										break;
+									case EQ::constants::stanceBurnAE:
+										botSpell = GetBestBotSpellForFastHeal(this);
+										if (botSpell.SpellId == 0)
+											botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+										if (botSpell.SpellId == 0)
+											botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+										break;
+									default:
+										break;
+									}//end switch
+
+
+								}//doenst have aggro...
+							}
+
 						}
 						else {
-							if(!tar->FindType(SE_HealOverTime))
-								botSpell = GetBestBotSpellForHealOverTime(this);
+							//No one needs a heal.
 						}
 					}
 					else if ((botClass == CLERIC) || (botClass == DRUID) || (botClass == SHAMAN) || (botClass == PALADIN)) {
+						
 						if(GetNumberNeedingHealedInGroup(40, true) >= 2){
 							botSpell = GetBestBotSpellForGroupCompleteHeal(this);
 
@@ -184,9 +438,13 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 							botSpell = GetBestBotSpellForPercentageHeal(this);
 						else if(hpr >= 40 && hpr < 75)
 							botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+
 						else {
-							if(hpr < 90 && !tar->FindType(SE_HealOverTime))
-								botSpell = GetBestBotSpellForHealOverTime(this);
+							if (hpr < 85 && !tar->FindType(SE_HealOverTime)) {
+								if (tar->GetClass() == WARRIOR || tar->GetClass() == SHADOWKNIGHT || tar->GetClass() == PALADIN) {
+									botSpell = GetBestBotSpellForHealOverTime(this);
+								}
+							}
 						}
 					}
 					else {
@@ -217,11 +475,11 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 							botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
 					}
 
-					if(botSpell.SpellId == 0)
-						botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+					//if(botSpell.SpellId == 0)
+						//botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
 
-					if(botSpell.SpellId == 0)
-						botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+					//if(botSpell.SpellId == 0)
+						//botSpell = GetFirstBotSpellForSingleTargetHeal(this);
 
 					if(botSpell.SpellId == 0 && botClass == BARD){
 						botSpell = GetFirstBotSpellBySpellType(this, SpellType_Heal);
@@ -241,21 +499,6 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 					castedSpell = AIDoSpellCast(botSpell.SpellIndex, tar, botSpell.ManaCost, &TempDontHealMeBeforeTime);
 
 					if(castedSpell) {
-						/*if(TempDontHealMeBeforeTime != tar->DontHealMeBefore())
-							tar->SetDontHealMeBefore(TempDontHealMeBeforeTime);
-
-						// For non-HoT heals, do a 4 second delay
-						// TODO: Replace this code with logic that calculates the delay based on number of clerics in rotation
-						//			and ignores heals for anyone except the main tank
-						if(!IsHealOverTimeSpell(botSpell.SpellId)) {
-							if(IsCompleteHealSpell(botSpell.SpellId)) {
-								// Complete Heal 4 second rotation
-								tar->SetDontHealMeBefore(Timer::GetCurrentTime() + 4000);
-							}
-							else {
-								tar->SetDontHealMeBefore(Timer::GetCurrentTime() + 1000);
-							}
-						}*/
 						if(botClass != BARD) {
 							if(IsGroupSpell(botSpell.SpellId)){
 								if(this->HasGroup()) {
@@ -274,7 +517,7 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 							}
 							else {
 								if(tar != this)		//we don't need spam of bots healing themselves
-									BotGroupSay(this, "Casting %s on %s", spells[botSpell.SpellId].name, tar->GetCleanName());
+									BotGroupSay(this, "I am Casting %s on %s", spells[botSpell.SpellId].name, tar->GetCleanName());
 
 								tar->SetDontHealMeBefore(Timer::GetCurrentTime() + 2000);
 							}
@@ -1055,6 +1298,8 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 
 	return castedSpell;
 }
+
+
 
 bool Bot::AIDoSpellCast(uint8 i, Mob* tar, int32 mana_cost, uint32* oDontDoAgainBefore) {
 	bool result = false;

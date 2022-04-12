@@ -1429,7 +1429,9 @@ int bot_command_init(void)
 		bot_command_add("taunt", "Toggles taunt use by a bot", 0, bot_command_taunt) ||
 		bot_command_add("track", "Orders a capable bot to track enemies", 0, bot_command_track) ||
 		bot_command_add("viewcombos", "Views bot race class combinations", 0, bot_command_view_combos) ||
-		bot_command_add("waterbreathing", "Orders a bot to cast a water breathing spell", 0, bot_command_water_breathing)
+		bot_command_add("waterbreathing", "Orders a bot to cast a water breathing spell", 0, bot_command_water_breathing) ||
+		bot_command_add("expcheck", "Reports the experience needed to next level", 0, bot_command_exp) ||
+		bot_command_add("aacheck", "Reports the experience needed to next level", 0, bot_command_aa)
 	) {
 		bot_command_deinit();
 		return -1;
@@ -2919,6 +2921,51 @@ void bot_command_botgroup(Client *c, const Seperator *sep)
 
 	helper_send_available_subcommands(c, "bot-group", subcommand_list);
 }
+
+void bot_command_exp(Client *c, const Seperator *sep){
+
+	auto my_bot = ActionableBots::AsTarget_ByBot(c);
+	if (!my_bot) {
+		c->Message(m_fail, "You must <target> a bot that you own to use this command");
+		return;
+	}else{
+	
+		int previousLevel = pow(my_bot->GetLevel(), 3) * 1000;	 //ex  1000 if level 1
+		int currentLevel = pow(my_bot->GetLevel() + 1, 3) * 1000;        //ex. 8000 if level 2
+										//10000       -    8000         /   //7000
+		float percentage = (float)(my_bot->GetExperience() - currentLevel) / (float)(currentLevel - previousLevel);
+		c->Message(m_message, "Total Experience: %u", my_bot->GetExperience());
+		c->Message(m_message, "Exp until Level : %4.2lf", percentage);
+		c->Message(m_message, "Exp until Level : %f", percentage);
+		c->Message(m_message, "CUR=%d PRE=%d LVL=%d", previousLevel,currentLevel,my_bot->GetLevel());	
+	}
+}
+
+void bot_command_aa(Client *c, const Seperator *sep){
+	auto my_bot = ActionableBots::AsTarget_ByBot(c);
+	if (!my_bot) {
+		c->Message(m_fail, "You must <target> a bot that you own to use this command");
+		return;
+	}
+	if (helper_is_help_or_usage(sep->arg[1])) {
+		c->Message(m_usage, "usage: %s Enter a number 0-100 to set the percentage of exp the bot will apply to exp", sep->arg[0]);
+		return;
+	}
+	if (!sep->IsNumber(1)) {
+		c->Message(m_fail, "A numeric [value] is required to use this command");
+		return;
+	}
+	int percent = atoi(sep->arg[1]);
+	if(percent >= 100)
+		percent = 100;
+	if(percent <= 0){
+		percent = 0;
+	}
+	c->Message(m_note, "Setting AA Percentage to %u", percent);
+	c->Message(m_note, "Total AA Points Obtained:%u", my_bot->CalculateAAPoints());
+	my_bot->SetAAPercentage(percent);
+}
+
 
 void bot_command_charm(Client *c, const Seperator *sep)
 {
@@ -5058,6 +5105,28 @@ void bot_subcommand_bot_camp(Client *c, const Seperator *sep)
 		c->Message(m_usage, "usage: %s ([actionable: target | byname | ownergroup | botgroup | targetgroup | namesgroup | healrotation | spawned] ([actionable_name]))", sep->arg[0]);
 		return;
 	}
+
+	//added area so bots cant be camped while engaged in combat.
+	if (c->GetGroup()) {
+		std::list<Mob*> group_list;
+		c->GetGroup()->GetMemberList(group_list);
+		for (auto member_iter : group_list) {
+			if (!member_iter)
+				continue;
+			if (member_iter->qglobal) // what is this?? really should have had a message to describe failure... (can't spawn bots if you are assigned to a task/instance?)
+				return;
+			if (!member_iter->qglobal && (member_iter->GetAppearance() != eaDead) && (member_iter->IsEngaged() || (member_iter->IsClient() && member_iter->CastToClient()->GetAggroCount()))) {
+				c->Message(m_fail, "You can't camp bots while you are engaged.");
+				return;
+			}
+		}
+	}
+	else if (c->GetAggroCount() > 0) {
+		c->Message(m_fail, "You can't spawn bots while you are engaged.");
+		return;
+	}
+
+
 	const int ab_mask = ActionableBots::ABM_NoFilter;
 
 	std::list<Bot*> sbl;
@@ -5065,7 +5134,7 @@ void bot_subcommand_bot_camp(Client *c, const Seperator *sep)
 		return;
 
 	for (auto bot_iter : sbl)
-		bot_iter->Camp();
+		bot_iter->Camp(true);
 }
 
 void bot_subcommand_bot_clone(Client *c, const Seperator *sep)
@@ -6094,8 +6163,21 @@ void bot_subcommand_bot_spawn(Client *c, const Seperator *sep)
 	}
 
 	int spawned_bot_count = Bot::SpawnedBotCount(c->CharacterID());
+	int rule_limit = 1;
 
-	int rule_limit = RuleI(Bots, SpawnLimit);
+	//increase by level
+	if (c->GetLevel() >= 5)
+		rule_limit++;
+	if (c->GetLevel() >= 10)
+		rule_limit++;
+	if (c->GetLevel() >= 15)
+		rule_limit++;
+	if (c->GetLevel() >= 20)
+		rule_limit++;
+	if (c->GetLevel() >= 50)
+		rule_limit+=6;	
+	
+	//int rule_limit = RuleI(Bots, SpawnLimit);
 	if (spawned_bot_count >= rule_limit && !c->GetGM()) {
 		c->Message(m_fail, "You can not have more than %i spawned bots", rule_limit);
 		return;

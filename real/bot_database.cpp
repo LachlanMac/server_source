@@ -324,6 +324,7 @@ bool BotDatabase::LoadBotID(const uint32 owner_id, const std::string& bot_name, 
 
 bool BotDatabase::LoadBot(const uint32 bot_id, Bot*& loaded_bot)
 {
+
 	if (!bot_id || loaded_bot)
 		return false;
 
@@ -374,7 +375,10 @@ bool BotDatabase::LoadBot(const uint32 bot_id, Bot*& loaded_bot)
 		" `corruption`,"		/* not in-use[42] */
 		" `show_helm`," // 43
 		" `follow_distance`," // 44
-		" `stop_melee_level`" // 45
+		" `stop_melee_level`," // 45
+		" `exp`,"               // 46
+		" `aa_exp`," 
+		" `aa_percentage`" 
 		" FROM `bot_data`"
 		" WHERE `bot_id` = '%u'"
 		" LIMIT 1",
@@ -386,6 +390,8 @@ bool BotDatabase::LoadBot(const uint32 bot_id, Bot*& loaded_bot)
 		return false;
 	if (!results.RowCount())
 		return true;
+
+	
 
 	// TODO: Consider removing resists and basic attributes from the load query above since we're using defaultNPCType values instead
 	auto row = results.begin();
@@ -428,12 +434,21 @@ bool BotDatabase::LoadBot(const uint32 bot_id, Bot*& loaded_bot)
 		defaultNPCTypeStruct->ATK
 	);
 
+	//Calculate Levelfrom exp first
+	uint32 exp = atoi(row[46]);
+	uint32 aaExp = atoi(row[47]);
+	uint32 aaPercentage = atoi(row[48]);
+
 	loaded_bot = new Bot(bot_id, atoi(row[0]), atoi(row[1]), atof(row[14]), atoi(row[6]), tempNPCStruct);
 	if (loaded_bot) {
 		loaded_bot->SetShowHelm((atoi(row[43]) > 0 ? true : false));
 		loaded_bot->SetSurname(row[3]);//maintaining outside mob::lastname to cater to spaces
 		loaded_bot->SetTitle(row[4]);
 		loaded_bot->SetSuffix(row[5]);
+		loaded_bot->SetExperience(exp);
+		loaded_bot->SetAAExperience(aaExp);
+		loaded_bot->SetAAPercentage(aaPercentage);
+		loaded_bot->SetLevelFromExperience();
 		uint32 bfd = atoi(row[44]);
 		if (bfd < 1)
 			bfd = 1;
@@ -497,7 +512,10 @@ bool BotDatabase::SaveNewBot(Bot* bot_inst, uint32& bot_id)
 		" `corruption`,"
 		" `show_helm`,"
 		" `follow_distance`,"
-		" `stop_melee_level`"
+		" `stop_melee_level`,"
+		" `exp`,"
+		" `aa_exp`,"
+		" `aa_percentage`"
 		")"
 		" VALUES ("
 		"'%u',"					/* owner_id */
@@ -542,7 +560,10 @@ bool BotDatabase::SaveNewBot(Bot* bot_inst, uint32& bot_id)
 		" '%i',"				/* corruption */
 		" '1',"					/* show_helm */
 		" '%i',"				/* follow_distance */
-		" '%u'"					/* stop_melee_level */
+		" '%u',"				/* stop_melee_level */
+		" '%i',"                 /* starting experience */ 
+		" '%i',"   				/* aa_exp */
+		" '%i'"   				/* aa_percentage */
 		")",
 		bot_inst->GetBotOwnerCharacterID(),
 		bot_inst->GetBotSpellID(),
@@ -552,7 +573,7 @@ bool BotDatabase::SaveNewBot(Bot* bot_inst, uint32& bot_id)
 		bot_inst->GetGender(),
 		bot_inst->GetRace(),
 		bot_inst->GetClass(),
-		bot_inst->GetLevel(),
+		1, //override new bots to always be level 1
 		bot_inst->GetSize(),
 		bot_inst->GetLuclinFace(),
 		bot_inst->GetHairColor(),
@@ -582,7 +603,10 @@ bool BotDatabase::SaveNewBot(Bot* bot_inst, uint32& bot_id)
 		bot_inst->GetDR(),
 		bot_inst->GetCorrup(),
 		(uint32)BOT_FOLLOW_DISTANCE_DEFAULT,
-		(IsCasterClass(bot_inst->GetClass()) ? (uint8)RuleI(Bots, CasterStopMeleeLevel) : 255)
+		(IsCasterClass(bot_inst->GetClass()) ? (uint8)RuleI(Bots, CasterStopMeleeLevel) : 255),
+		1000,
+		0,
+		0
 	);
 	auto results = database.QueryDatabase(query);
 	if (!results.Success())
@@ -644,7 +668,10 @@ bool BotDatabase::SaveBot(Bot* bot_inst)
 		" `follow_distance` = '%i',"
 		" `stop_melee_level` = '%u',"
 		" `title` = '%s',"
-		" `suffix` = '%s'"
+		" `suffix` = '%s',"
+		" `exp` = '%u',"
+		" `aa_exp` = '%u',"
+		" `aa_percentage` = '%u'"
 		" WHERE `bot_id` = '%u'",
 		bot_inst->GetBotOwnerCharacterID(),
 		bot_inst->GetBotSpellID(),
@@ -689,6 +716,9 @@ bool BotDatabase::SaveBot(Bot* bot_inst)
 		bot_inst->GetStopMeleeLevel(),
 		bot_inst->GetTitle().c_str(),
 		bot_inst->GetSuffix().c_str(),
+		bot_inst->GetExperience(),
+		bot_inst->GetAAExperience(),
+		bot_inst->GetAAPercentage(),
 		bot_inst->GetBotID()
 	);
 	auto results = database.QueryDatabase(query);

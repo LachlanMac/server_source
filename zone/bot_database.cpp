@@ -200,9 +200,6 @@ bool BotDatabase::QueryBotCount(const uint32 owner_id, uint32& bot_count)
 	return true;
 }
 
-
-
-
 bool BotDatabase::LoadQuestableSpawnCount(const uint32 owner_id, int& spawn_count)
 {
 	if (!owner_id)

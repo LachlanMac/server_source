@@ -4647,6 +4647,11 @@ bool Bot::Death(Mob *killerMob, int32 damage, uint16 spell_id, EQ::skills::Skill
 	if(!NPC::Death(killerMob, damage, spell_id, attack_skill))
 		return false;
 
+	//added exp loss
+	if(GetLevel() > 1){
+		float expLoss = (float(pow(GetLevel(), 3) * 1000) - (pow(GetLevel() - 1, 3) * 1000)) * .20f;
+		SetExperience(GetExperience() - (int)expLoss);
+	}
 	Save();
 
 	Mob *my_owner = GetBotOwner();
@@ -4661,6 +4666,7 @@ bool Bot::Death(Mob *killerMob, int32 damage, uint16 spell_id, EQ::skills::Skill
 	Client *give_exp_client = nullptr;
 	if(give_exp && give_exp->IsClient())
 		give_exp_client = give_exp->CastToClient();
+
 
 	bool IsLdonTreasure = (this->GetClass() == LDON_TREASURE);
 	if(entity_list.GetCorpseByID(GetID()))
@@ -8881,8 +8887,8 @@ void Bot::CalcBotStats(bool showtext) {
 		GetBotOwner()->Message(Chat::Yellow, "Unless you are experiencing heavy lag, you should delete and remake this bot.");
 	}*/
 
-	if(GetBotOwner()->GetLevel() != GetLevel())
-		SetLevel(GetBotOwner()->GetLevel());
+	//if(GetBotOwner()->GetLevel() != GetLevel())
+	//	SetLevel(GetBotOwner()->GetLevel());
 
 	for (int sindex = 0; sindex <= EQ::skills::HIGHEST_SKILL; ++sindex) {
 		skills[sindex] = content_db.GetSkillCap(GetClass(), (EQ::skills::SkillType)sindex, GetLevel());
@@ -9899,6 +9905,94 @@ void Bot::StopMoving(float new_heading)
 	Mob::StopMoving(new_heading);
 }
 
+void Bot::LoadAAs() {
+	
+	int base_points = 20 + CalculateAAPoints();
+	aa_ranks.clear();
+	int id = 0;
+	int points = 0;
+	auto iter = zone->aa_abilities.begin();
+	while(iter != zone->aa_abilities.end()) {
+		AA::Ability *ability = (*iter).second.get();
+		//skip expendables
+		if(!ability->first || ability->charges > 0) {
+			++iter;
+			continue;
+		}
+		id = ability->first->id;
+		points = 0;
+		AA::Rank *current = ability->first;
+		if (current->level_req > GetLevel()) {
+			++iter;
+			continue;
+		}
+		while(current) {
+			if(!CanUseAlternateAdvancementRank(current)) {
+				current = nullptr;
+			} else {
+				current = current->next;
+				points++;
+			}
+		}
+		if(points > 0) {
+			base_points--;
+			if(base_points >= 0){
+				SetAA(id, points);
+			}
+		}
+		++iter;
+	}
+}
+
+void Bot::SetLevelFromExperience(){
+	SetLevel((int)cbrt(_experience / 1000));
+}
+
+void Bot::AddExperience(uint exp){
+
+	if(GetLevel() >= 45){
+		int aaExp = float(_aaPercentage / 100) * exp ;
+		_aaExperience+=aaExp;
+		_experience+=(exp - aaExp);
+	}else{
+
+		_experience+= int((float)exp * 1.40f);
+	}
+	
+	//check for level up...
+	int32 newLevel = (int)cbrt(_experience / 1000);
+	if(newLevel != GetLevel()){
+			if(newLevel <= GetOwner()->CastToClient()->GetLevel()) {
+				SetLevel(newLevel);
+				SetPetChooser(false); // not sure what this does, but was in bot 'update' code
+				CalcBotStats(GetOwner()->CastToClient()->GetBotOption(Client::booStatsUpdate));
+				SendLevelAppearance();
+				SendAppearancePacket(AT_WhoLevel, newLevel, true, true); // who level change
+			}
+	}
+}
+
+uint32 Bot::CalculateAAPoints(){
+	
+	return GetAAExperience() / 50000000;  //seems like a good number for AAs lol
+
+}
+
 uint8 Bot::spell_casting_chances[SPELL_TYPE_COUNT][PLAYER_CLASS_COUNT][EQ::constants::STANCE_TYPE_COUNT][cntHSND] = { 0 };
+
+
+bool Bot::IsTank(){
+
+	if(GetClass() == WARRIOR || GetClass() == SHADOWKNIGHT || GetClass() == PALADIN )
+		return true;
+	return false;
+}
+
+bool Bot::IsCaster(){
+
+	if(GetClass() == WIZARD || GetClass() == MAGICIAN || GetClass() == ENCHANTER)
+		return true;
+	return false;
+}
 
 #endif

@@ -4961,12 +4961,8 @@ void bot_command_exp(Client *c, const Seperator *sep){
 		c->Message(m_message, "Total Experience: %u", my_bot->GetExperience());
 		c->Message(m_message, "Exp until Level : %4.2lf", percentage);
 		c->Message(m_message, "Exp until Level : %f", percentage);
-		c->Message(m_message, "CUR=%d PRE=%d LVL=%d", previousLevel,currentLevel,my_bot->GetLevel());
-		
-		
-		
+		c->Message(m_message, "CUR=%d PRE=%d LVL=%d", previousLevel,currentLevel,my_bot->GetLevel());	
 	}
-
 }
 
 void bot_command_aa(Client *c, const Seperator *sep){

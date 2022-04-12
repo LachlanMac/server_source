@@ -20,7 +20,6 @@
 #include "../common/features.h"
 #include "../common/rulesys.h"
 #include "../common/string_util.h"
-
 #include "client.h"
 #include "groups.h"
 #include "mob.h"
