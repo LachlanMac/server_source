@@ -9983,11 +9983,11 @@ void Bot::AddExperience(uint exp){
 	}
 
 	if(GetLevel() >= 45){
-		int aaExp = float(_aaPercentage / 100) * addExp ;
+		int aaExp = float(_aaPercentage / 100) * add_exp ;
 		_aaExperience+=aaExp;
-		_experience+=(addExp - aaExp);
+		_experience+=(add_exp - aaExp);
 	}else{
-		_experience+= addExp;
+		_experience+= add_exp;
 	}
 
 	//check for level up...
