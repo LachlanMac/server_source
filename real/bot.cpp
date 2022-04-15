@@ -9948,7 +9948,7 @@ void Bot::LoadAAs() {
 }
 
 void Bot::SetLevelFromExperience(){
-	SetLevel((int)cbrt(_experience / 1000) + 1);
+	SetLevel((int)cbrt(_experience / 1000 + 1));
 }
 
 void Bot::AddExperience(uint exp){
@@ -9959,11 +9959,11 @@ void Bot::AddExperience(uint exp){
 		_experience+=(exp - aaExp);
 	}else{
 
-		_experience+= int((float)exp;
+		_experience+= exp;
 	}
 	
 	//check for level up...
-	int32 newLevel = (int)cbrt(_experience / 1000) + 1;
+	int32 newLevel = (int)cbrt(_experience / 1000 + 1);
 	if(newLevel != GetLevel()){
 			if(newLevel <= GetOwner()->CastToClient()->GetLevel()) {
 				SetLevel(newLevel);
