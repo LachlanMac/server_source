@@ -1053,11 +1053,12 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 
 	if (membercount == 0)
 		return;
-
+	double zoneexpmod = 1;
 	for (i = 0; i < MAX_GROUP_MEMBERS; i++) {
 		if (members[i] != nullptr && members[i]->IsClient()) // If Group Member is Client
 		{
 			Client *cmember = members[i]->CastToClient();
+			zoneexpmod = cmember->GetEXPModifier(c->CharacterID(),this->GetZoneID());
 			// add exp + exp cap
 			int16 diff = cmember->GetLevel() - maxlevel;  //the difference between the highest level person in the
 			int16 maxdiff = -(cmember->GetLevel()*15/10 - cmember->GetLevel());
@@ -1069,7 +1070,9 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 				cmember->AddEXP( tmp < tmp2 ? tmp : tmp2, conlevel );
 			}
 		}
-		#ifdef BOTS
+	}
+	#ifdef BOTS
+	for (i = 0; i < MAX_GROUP_MEMBERS; i++) {
 		if(members[i] != nullptr && members[i]->IsBot()){ // If Group Member is Bot
 			Bot *cmember = members[i]->CastToBot();
 			uint32 tmp = (cmember->GetLevel()+3) * (cmember->GetLevel()+3) * 75 * 35 / 10;
@@ -1079,10 +1082,11 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 			{
 				exp = exp * GetConLevelModifierPercent(conlevel);
 			}
+			exp = exp * zoneexpmod;
 			cmember->AddExperience(exp, conlevel);
-		}
-		#endif				
+		}				
 	}
+	#endif	
 }
 
 void Raid::SplitExp(uint32 exp, Mob* other) {

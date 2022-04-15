@@ -9982,11 +9982,6 @@ void Bot::AddExperience(uint exp){
 		add_exp *= RuleR(Character, FinalExpMultiplier);
 	}
 
-	if (RuleB(Character, EnableCharacterEXPMods)) {
-		add_exp *= GetEXPModifier(this->GetZoneID());
-	}
-
-
 	if(GetLevel() >= 45){
 		int aaExp = float(_aaPercentage / 100) * addExp ;
 		_aaExperience+=aaExp;
