@@ -1669,48 +1669,6 @@ int32 Bot::GenerateBaseHitPoints() {
 	return new_base_hp;
 }
 
-void Bot::LoadAAs() {
-	
-	aa_ranks.clear();
-
-	int id = 0;
-	int points = 0;
-	auto iter = zone->aa_abilities.begin();
-	while(iter != zone->aa_abilities.end()) {
-		AA::Ability *ability = (*iter).second.get();
-
-		//skip expendables
-		if(!ability->first || ability->charges > 0) {
-			++iter;
-			continue;
-		}
-
-		id = ability->first->id;
-		points = 0;
-
-		AA::Rank *current = ability->first;
-		
-		if (current->level_req > GetLevel()) {
-			++iter;
-			continue;
-		}
-
-		while(current) {
-			if(!CanUseAlternateAdvancementRank(current)) {
-				current = nullptr;
-			} else {
-				current = current->next;
-				points++;
-			}
-		}
-
-		if(points > 0) {
-			SetAA(id, points);
-		}
-
-		++iter;
-	}
-}
 
 bool Bot::IsValidRaceClassCombo()
 {
@@ -9905,6 +9863,51 @@ void Bot::StopMoving(float new_heading)
 	Mob::StopMoving(new_heading);
 }
 
+/*  THIS FUNCTION WAS REPLACED BY CUSTOM AA LOGIC
+void Bot::LoadAAs() {
+	
+	aa_ranks.clear();
+
+	int id = 0;
+	int points = 0;
+	auto iter = zone->aa_abilities.begin();
+	while(iter != zone->aa_abilities.end()) {
+		AA::Ability *ability = (*iter).second.get();
+
+		//skip expendables
+		if(!ability->first || ability->charges > 0) {
+			++iter;
+			continue;
+		}
+
+		id = ability->first->id;
+		points = 0;
+
+		AA::Rank *current = ability->first;
+		
+		if (current->level_req > GetLevel()) {
+			++iter;
+			continue;
+		}
+
+		while(current) {
+			if(!CanUseAlternateAdvancementRank(current)) {
+				current = nullptr;
+			} else {
+				current = current->next;
+				points++;
+			}
+		}
+
+		if(points > 0) {
+			SetAA(id, points);
+		}
+
+		++iter;
+	}
+}
+*/
+
 void Bot::LoadAAs() {
 	
 	int base_points = 20 + CalculateAAPoints();
@@ -9945,7 +9948,7 @@ void Bot::LoadAAs() {
 }
 
 void Bot::SetLevelFromExperience(){
-	SetLevel((int)cbrt(_experience / 1000));
+	SetLevel((int)cbrt(_experience / 1000) + 1);
 }
 
 void Bot::AddExperience(uint exp){
@@ -9956,11 +9959,11 @@ void Bot::AddExperience(uint exp){
 		_experience+=(exp - aaExp);
 	}else{
 
-		_experience+= int((float)exp * 1.40f);
+		_experience+= int((float)exp;
 	}
 	
 	//check for level up...
-	int32 newLevel = (int)cbrt(_experience / 1000);
+	int32 newLevel = (int)cbrt(_experience / 1000) + 1;
 	if(newLevel != GetLevel()){
 			if(newLevel <= GetOwner()->CastToClient()->GetLevel()) {
 				SetLevel(newLevel);

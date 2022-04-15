@@ -604,7 +604,7 @@ bool BotDatabase::SaveNewBot(Bot* bot_inst, uint32& bot_id)
 		bot_inst->GetCorrup(),
 		(uint32)BOT_FOLLOW_DISTANCE_DEFAULT,
 		(IsCasterClass(bot_inst->GetClass()) ? (uint8)RuleI(Bots, CasterStopMeleeLevel) : 255),
-		1000,
+		1,
 		0,
 		0
 	);

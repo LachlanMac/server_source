@@ -233,6 +233,9 @@ float static GetConLevelModifierPercent(uint8 conlevel)
 {
 	switch (conlevel)
 	{
+	case CON_GRAY:
+		return 0.15f;
+		break;
 	case CON_GREEN:
 		return (float)RuleI(Character, GreenModifier) / 100;
 		break;
@@ -1076,15 +1079,77 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 
 			uint32 exp = tmp < tmp2 ? tmp : tmp2;
 			
-			if (RuleB(Character, UseXPConScaling))
-			{	
-				exp = exp * GetConLevelModifierPercent(conlevel);
-			}
-			cmember->AddExperience(exp);
+			//if (RuleB(Character, UseXPConScaling))
+			//{	exp = exp * GetConLevelModifierPercent(conlevel);}
+			uint32 expmod = 0;
+			CalculateBotExp(in_add_exp, expmod, conlevel);
+			cmember->AddExperience(expmod);
 		}
 		#endif				
 	}
 }
+
+void Client::CalculateBotExp(uint32 in_add_exp, uint32 &add_exp, uint8 conlevel)
+{
+	add_exp = in_add_exp;
+
+	if (!resexp && (XPRate != 0))
+	{
+		add_exp = static_cast<uint32>(in_add_exp * (static_cast<float>(XPRate) / 100.0f));
+	}
+
+	if (!resexp)
+	{
+		
+		float totalmod = 1.0;
+		float zemmod = 1.0;
+
+		//get modifiers
+		if (RuleR(Character, ExpMultiplier) >= 0) {
+			totalmod *= RuleR(Character, ExpMultiplier);
+		}
+
+		//add the zone exp modifier.
+		if (zone->newzone_data.zone_exp_multiplier >= 0) {
+			zemmod *= zone->newzone_data.zone_exp_multiplier;
+		}
+
+		//add hotzone modifier if one has been set.
+		if (zone->IsHotzone())
+		{
+			totalmod += RuleR(Zone, HotZoneBonus);
+		}
+
+		add_exp = uint32(float(add_exp) * totalmod * zemmod);
+
+		//if XP scaling is based on the con of a monster, do that now.
+		if (RuleB(Character, UseXPConScaling))
+		{
+			if (conlevel != 0xFF && !resexp)
+			{
+				add_exp = add_exp * GetConLevelModifierPercent(conlevel);
+			}
+		}
+
+		// Calculate any changes to leadership experience.
+		//CalculateLeadershipExp(add_exp, conlevel);
+	}	//end !resexp
+
+	if (RuleB(Zone, LevelBasedEXPMods)) {
+		if (zone->level_exp_mod[GetLevel()].ExpMod) {
+			add_exp *= zone->level_exp_mod[GetLevel()].ExpMod;
+		}
+	}
+
+	if (RuleR(Character, FinalExpMultiplier) >= 0) {
+		add_exp *= RuleR(Character, FinalExpMultiplier);
+	}
+
+	if (RuleB(Character, EnableCharacterEXPMods)) {
+		add_exp *= GetEXPModifier(this->GetZoneID());
+	}
+}
+
 
 void Raid::SplitExp(uint32 exp, Mob* other) {
 	if( other->CastToNPC()->MerchantType != 0 ) // Ensure NPC isn't a merchant
