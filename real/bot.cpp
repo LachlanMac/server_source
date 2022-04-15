@@ -9952,16 +9952,49 @@ void Bot::SetLevelFromExperience(){
 }
 
 void Bot::AddExperience(uint exp){
+	int add_exp = exp;
+	float totalmod = 1.0;
+	float zemmod = 1.0;
+	//get modifiers
+	if (RuleR(Character, ExpMultiplier) >= 0) {
+		totalmod *= RuleR(Character, ExpMultiplier);
+	}
+	//add the zone exp modifier.
+	if (zone->newzone_data.zone_exp_multiplier >= 0) {
+		zemmod *= zone->newzone_data.zone_exp_multiplier;
+	}
+		//add hotzone modifier if one has been set.
+	if (zone->IsHotzone())
+	{
+		totalmod += RuleR(Zone, HotZoneBonus);
+	}
+	add_exp = uint32(float(add_exp) * totalmod * zemmod);
+
+	//if XP scaling is based on the con of a monster, do that now.
+	
+	if (RuleB(Zone, LevelBasedEXPMods)) {
+		if (zone->level_exp_mod[GetLevel()].ExpMod) {
+			add_exp *= zone->level_exp_mod[GetLevel()].ExpMod;
+		}
+	}
+
+	if (RuleR(Character, FinalExpMultiplier) >= 0) {
+		add_exp *= RuleR(Character, FinalExpMultiplier);
+	}
+
+	if (RuleB(Character, EnableCharacterEXPMods)) {
+		add_exp *= GetEXPModifier(this->GetZoneID());
+	}
+
 
 	if(GetLevel() >= 45){
-		int aaExp = float(_aaPercentage / 100) * exp ;
+		int aaExp = float(_aaPercentage / 100) * addExp ;
 		_aaExperience+=aaExp;
-		_experience+=(exp - aaExp);
+		_experience+=(addExp - aaExp);
 	}else{
-
-		_experience+= exp;
+		_experience+= addExp;
 	}
-	
+
 	//check for level up...
 	int32 newLevel = (int)cbrt(_experience / 1000 + 1);
 	if(newLevel != GetLevel()){
