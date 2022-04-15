@@ -2929,15 +2929,23 @@ void bot_command_exp(Client *c, const Seperator *sep){
 		c->Message(m_fail, "You must <target> a bot that you own to use this command");
 		return;
 	}else{
-	
-		int previousLevel = pow(my_bot->GetLevel(), 3) * 1000;	 //ex  1000 if level 1
-		int currentLevel = pow(my_bot->GetLevel() + 1, 3) * 1000;        //ex. 8000 if level 2
-										//10000       -    8000         /   //7000
-		float percentage = (float)(my_bot->GetExperience() - currentLevel) / (float)(currentLevel - previousLevel);
-		c->Message(m_message, "Total Experience: %u", my_bot->GetExperience());
-		c->Message(m_message, "Exp until Level : %4.2lf", percentage);
-		c->Message(m_message, "Exp until Level : %f", percentage);
-		c->Message(m_message, "CUR=%d PRE=%d LVL=%d", previousLevel,currentLevel,my_bot->GetLevel());	
+		//EXAMPLE === I am Level 3 And i have 11,000 EXP
+		//previous level= Exp to GET to level 3... WHICH IS 8000  (level - 1)^3 *1k
+		//current level = Exp to GET to level 4...which is 270000 (level)^3  * 1k 
+		//exp needed to level currentLevel - previousLevel, which is 19,000
+		//                                       19k us needed...and i have 11k - 8k into it ..so 3k...
+		int previousLevel = 0;
+		int nextLevel = 1000;
+		if(my_bot->GetLevel() == 1){
+			previousLevel = 0;
+		}else{
+			previousLevel = pow(my_bot->GetLevel() - 1, 3) * 1000;	
+		}
+		nextLevel = pow(my_bot->GetLevel(), 3) * 1000;
+		int expneeded = nextLevel - previousLevel;
+		int expinlevel = my_bot->GetExperience() - previousLevel;
+		float percentage = (float)(expinlevel) / (float)(expneeded);
+		c->Message(m_message, "Level %d  :  %d / %d exp   [ %4.2lf ]", my_bot->GetLevel(),expinlevel,expneeded,percentage);
 	}
 }
 
