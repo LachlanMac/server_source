@@ -1058,7 +1058,7 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 		if (members[i] != nullptr && members[i]->IsClient()) // If Group Member is Client
 		{
 			Client *cmember = members[i]->CastToClient();
-			zoneexpmod = cmember->GetEXPModifier(c->CharacterID(),this->GetZoneID());
+			zoneexpmod = cmember->GetEXPModifier(cmember->CharacterID(),zone->GetZoneID());
 			// add exp + exp cap
 			int16 diff = cmember->GetLevel() - maxlevel;  //the difference between the highest level person in the
 			int16 maxdiff = -(cmember->GetLevel()*15/10 - cmember->GetLevel());
@@ -1083,7 +1083,7 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 				exp = exp * GetConLevelModifierPercent(conlevel);
 			}
 			exp = exp * zoneexpmod;
-			cmember->AddExperience(exp, conlevel);
+			cmember->AddExperience(exp);
 		}				
 	}
 	#endif	
