@@ -61,6 +61,7 @@ public:
 	bool LoadBot(const uint32 bot_id, Bot*& loaded_bot);
 	bool SaveNewBot(Bot* bot_inst, uint32& bot_id);
 	bool SaveBot(Bot* bot_inst);
+	bool SaveExp(const uint32 bot_id, uint32 exp);
 	bool DeleteBot(const uint32 bot_id);
 
 	bool LoadBuffs(Bot* bot_inst);

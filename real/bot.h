@@ -715,7 +715,7 @@ private:
 	uint32 _experience;
 	uint32 _aaExperience;
 	uint32 _aaPercentage;
-
+	uint8 _killedmobs
 	// Class Methods
 	void LoadAAs();
 	int32 acmod();

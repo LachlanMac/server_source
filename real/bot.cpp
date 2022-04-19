@@ -1708,6 +1708,29 @@ bool Bot::IsValidName(std::string& name)
 	return true;
 }
 
+
+
+bool Bot::SaveExp(){
+
+	auto bot_owner = GetBotOwner();
+	if (!bot_owner)
+		return false;
+	if(!GetBotID()) { // New bot record
+		uint32 bot_id = 0;
+		if (!database.botdb.SaveExp(this, bot_id) || !bot_id) {
+			bot_owner->Message(Chat::Red, "%s '%s'", BotDatabase::fail::SaveNewBot(), GetCleanName());
+			return false;
+		}
+		SetBotID(bot_id);
+	}
+	else { // Update existing bot record
+		if (!database.botdb.SaveExp(this)) {
+			bot_owner->Message(Chat::Red, "%s '%s'", BotDatabase::fail::SaveBot(), GetCleanName());
+			return false;
+		}
+	}
+}
+
 bool Bot::Save()
 {
 	auto bot_owner = GetBotOwner();
@@ -9952,6 +9975,8 @@ void Bot::SetLevelFromExperience(){
 }
 
 void Bot::AddExperience(uint exp){
+	
+	_killedmobs++;
 	int add_exp = exp;
 	float totalmod = 1.0;
 	float zemmod = 1.0;
@@ -9982,7 +10007,7 @@ void Bot::AddExperience(uint exp){
 		add_exp *= RuleR(Character, FinalExpMultiplier);
 	}
 
-	if(GetLevel() >= 45){
+	if(GetLevel() >= 49){
 		int aaExp = float(_aaPercentage / 100) * add_exp ;
 		_aaExperience+=aaExp;
 		_experience+=(add_exp - aaExp);
@@ -10001,7 +10026,11 @@ void Bot::AddExperience(uint exp){
 				SendAppearancePacket(AT_WhoLevel, newLevel, true, true); // who level change
 			}
 	}
-	this->Save();
+	//lets just save every 5 mobs...
+	if(_killedmobs > 5){
+		this->SaveExp();
+		_killedmobs = 0;
+	}
 
 }
 
