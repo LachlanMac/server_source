@@ -715,7 +715,7 @@ private:
 	uint32 _experience;
 	uint32 _aaExperience;
 	uint32 _aaPercentage;
-	uint8 _killedmobs
+	uint8 _killedmobs;
 	// Class Methods
 	void LoadAAs();
 	int32 acmod();
@@ -735,7 +735,7 @@ private:
 	void GetBotItems(EQ::InventoryProfile &inv, std::string* errorMessage);
 	void BotAddEquipItem(int slot, uint32 id);
 	uint32 GetBotItemBySlot(uint32 slotID);
-
+	bool SaveExp();
 	// Private "Pet" Methods
 	bool LoadPet();	// Load and spawn bot pet if there is one
 	bool SavePet();	// Save and depop bot pet if there is one
