@@ -3051,7 +3051,7 @@ XS(XS__UpdateSpawnTimer);
 XS(XS__UpdateSpawnTimer) {
 	dXSARGS;
 	if (items != 2)
-		Perl_croak(aTHX_ "Usage: quest::UpdateSpawnTimer(uint32 spawn2_id, uint32 updated_time_till_repop)");
+		Perl_croak(aTHX_ "Usage: quest::updatespawntimer(uint32 spawn2_id, uint32 updated_time_till_repop)");
 
 	uint32 spawn2_id               = (int) SvIV(ST(0));
 	uint32 updated_time_till_repop = (int) SvIV(ST(1));
@@ -3350,18 +3350,18 @@ XS(XS__MovePCInstance) {
 	if (items != 5 && items != 6)
 		Perl_croak(aTHX_ "Usage: quest::MovePCInstance(int zone_id, int instance_id, float x, float y, float z, [float heading])");
 
-	int   zone_id    = (int) SvIV(ST(0));
-	int   instanceid = (int) SvIV(ST(1));
-	float x          = (float) SvNV(ST(2));
-	float y          = (float) SvNV(ST(3));
-	float z          = (float) SvNV(ST(4));
+	int zone_id = (int) SvIV(ST(0));
+	int instance_id = (int) SvIV(ST(1));
+	float x = (float) SvNV(ST(2));
+	float y = (float) SvNV(ST(3));
+	float z = (float) SvNV(ST(4));
+	float heading = 0.0f;
 
-	if (items == 4) {
-		quest_manager.MovePCInstance(zone_id, instanceid, glm::vec4(x, y, z, 0.0f));
-	} else {
-		float heading = (float) SvNV(ST(5));
-		quest_manager.MovePCInstance(zone_id, instanceid, glm::vec4(x, y, z, heading));
+	if (items == 6) {
+		heading = (float) SvNV(ST(5));
 	}
+
+	quest_manager.MovePCInstance(zone_id, instance_id, glm::vec4(x, y, z, heading));
 
 	XSRETURN_EMPTY;
 }
@@ -3483,7 +3483,7 @@ XS(XS__getcurrencyitemid) {
 	dXSTARG;
 
 	int RETVAL;
-	int currency_id = (int) SvUV(ST(0));
+	uint32 currency_id = (uint32) SvUV(ST(0));
 
 	RETVAL = quest_manager.getcurrencyitemid(currency_id);
 
@@ -3499,8 +3499,8 @@ XS(XS__getcurrencyid) {
 		Perl_croak(aTHX_ "Usage: quest::getcurrencyid(uint32 item_id)");
 	dXSTARG;
 
-	int 		RETVAL;
-	uint32      item_id = (int) SvUV(ST(0));
+	uint32 RETVAL;
+	uint32 item_id = (uint32) SvUV(ST(0));
 
 	RETVAL = quest_manager.getcurrencyid(item_id);
 	XSprePUSH;
@@ -4802,7 +4802,8 @@ XS(XS__SetContentFlag)
 
 	std::string flag_name = (std::string) SvPV_nolen(ST(0));
 	bool        enabled   = (int) SvIV(ST(1)) != 0;
-	ZoneStore::SetContentFlag(flag_name, enabled);
+
+	content_service.SetContentFlag(flag_name, enabled);
 	XSRETURN_EMPTY;
 }
 
@@ -5141,7 +5142,7 @@ XS(XS__gethexcolorcode) {
 	sv_setpv(TARG, hex_color_code.c_str());
 	XSprePUSH;
 	PUSHTARG;
-	XSRETURN(1);	
+	XSRETURN(1);
 }
 
 XS(XS__getaaexpmodifierbycharid);
@@ -5149,7 +5150,7 @@ XS(XS__getaaexpmodifierbycharid) {
 	dXSARGS;
 	if (items != 2)
 		Perl_croak(aTHX_ "Usage: quest::getaaexpmodifierbycharid(uint32 character_id, uint32 zone_id)");
-		
+
 	dXSTARG;
 	double aa_modifier;
 	uint32 character_id = (uint32) SvUV(ST(0));
@@ -5165,7 +5166,7 @@ XS(XS__getexpmodifierbycharid) {
 	dXSARGS;
 	if (items != 2)
 		Perl_croak(aTHX_ "Usage: quest::getexpmodifierbycharid(uint32 character_id, uint32 zone_id)");
-		
+
 	dXSTARG;
 	double exp_modifier;
 	uint32 character_id = (uint32) SvUV(ST(0));
@@ -5313,7 +5314,7 @@ XS(XS__getspellstat) {
 	uint8 slot = 0;
 	if (items == 3)
 		slot = (uint8) SvUV(ST(2));
-		
+
 	stat_value = quest_manager.getspellstat(spell_id, stat_identifier, slot);
 
 	XSprePUSH;
@@ -7551,7 +7552,7 @@ XS(XS__worldwideassigntask) {
 
 		if (items == 3)
 			max_status = (uint8) SvUV(ST(2));
-			
+
 		quest_manager.WorldWideTaskUpdate(update_type, task_identifier, task_subidentifier, update_count, enforce_level_requirement, min_status, max_status);
 	}
 	XSRETURN_EMPTY;
@@ -7616,7 +7617,7 @@ XS(XS__worldwidedisabletask) {
 
 		if (items == 3)
 			max_status = (uint8) SvUV(ST(2));
-			
+
 		quest_manager.WorldWideTaskUpdate(update_type, task_identifier, task_subidentifier, update_count, enforce_level_requirement, min_status, max_status);
 	}
 	XSRETURN_EMPTY;
@@ -7640,7 +7641,7 @@ XS(XS__worldwideenabletask) {
 
 		if (items == 3)
 			max_status = (uint8) SvUV(ST(2));
-			
+
 		quest_manager.WorldWideTaskUpdate(update_type, task_identifier, task_subidentifier, update_count, enforce_level_requirement, min_status, max_status);
 	}
 	XSRETURN_EMPTY;
@@ -7664,7 +7665,7 @@ XS(XS__worldwidefailtask) {
 
 		if (items == 3)
 			max_status = (uint8) SvUV(ST(2));
-			
+
 		quest_manager.WorldWideTaskUpdate(update_type, task_identifier, task_subidentifier, update_count, enforce_level_requirement, min_status, max_status);
 	}
 	XSRETURN_EMPTY;
@@ -8023,6 +8024,107 @@ XS(XS__getspell) {
     }
 }
 
+XS(XS__getldonthemename);
+XS(XS__getldonthemename) {
+	dXSARGS;
+	if (items != 1)
+		Perl_croak(aTHX_ "Usage: quest::getldonthemename(uint32 theme_id)");
+	{
+		dXSTARG;
+		uint32 theme_id = (uint32) SvUV(ST(0));
+		std::string theme_name = quest_manager.getldonthemename(theme_id);
+
+		sv_setpv(TARG, theme_name.c_str());
+		XSprePUSH;
+		PUSHTARG;
+		XSRETURN(1);
+	}
+}
+
+XS(XS__getfactionname);
+XS(XS__getfactionname) {
+	dXSARGS;
+	if (items != 1)
+		Perl_croak(aTHX_ "Usage: quest::getfactionname(int faction_id)");
+	{
+		dXSTARG;
+		int faction_id = (int) SvIV(ST(0));
+		std::string faction_name = quest_manager.getfactionname(faction_id);
+
+		sv_setpv(TARG, faction_name.c_str());
+		XSprePUSH;
+		PUSHTARG;
+		XSRETURN(1);
+	}
+}
+
+XS(XS__getlanguagename);
+XS(XS__getlanguagename) {
+	dXSARGS;
+	if (items != 1)
+		Perl_croak(aTHX_ "Usage: quest::getlanguagename(int language_id)");
+	{
+		dXSTARG;
+		int language_id = (int) SvIV(ST(0));
+		std::string language_name = quest_manager.getlanguagename(language_id);
+
+		sv_setpv(TARG, language_name.c_str());
+		XSprePUSH;
+		PUSHTARG;
+		XSRETURN(1);
+	}
+}
+
+XS(XS__getbodytypename);
+XS(XS__getbodytypename) {
+	dXSARGS;
+	if (items != 1)
+		Perl_croak(aTHX_ "Usage: quest::getbodytypename(uint32 bodytype_id)");
+	{
+		dXSTARG;
+		uint32 bodytype_id = (uint32) SvUV(ST(0));
+		std::string bodytype_name = quest_manager.getbodytypename(bodytype_id);
+
+		sv_setpv(TARG, bodytype_name.c_str());
+		XSprePUSH;
+		PUSHTARG;
+		XSRETURN(1);
+	}
+}
+
+XS(XS__getconsiderlevelname);
+XS(XS__getconsiderlevelname) {
+	dXSARGS;
+	if (items != 1)
+		Perl_croak(aTHX_ "Usage: quest::getconsiderlevelname(uint8 consider_level)");
+	{
+		dXSTARG;
+		uint8 consider_level = (uint8) SvUV(ST(0));
+		std::string consider_level_name = quest_manager.getconsiderlevelname(consider_level);
+
+		sv_setpv(TARG, consider_level_name.c_str());
+		XSprePUSH;
+		PUSHTARG;
+		XSRETURN(1);
+	}
+}
+
+XS(XS__getenvironmentaldamagename);
+XS(XS__getenvironmentaldamagename) {
+	dXSARGS;
+	if (items != 1)
+		Perl_croak(aTHX_ "Usage: quest::getenvironmentaldamagename(uint8 damage_type)");
+
+	dXSTARG;
+	uint8 damage_type = (uint8) SvIV(ST(0));
+	std::string environmental_damage_name = quest_manager.getenvironmentaldamagename(damage_type);
+
+	sv_setpv(TARG, environmental_damage_name.c_str());
+	XSprePUSH;
+	PUSHTARG;
+	XSRETURN(1);
+}
+
 /*
 This is the callback perl will look for to setup the
 quest package's XSUBs
@@ -8303,9 +8405,11 @@ EXTERN_C XS(boot_quest) {
 	newXS(strcpy(buf, "forcedoorclose"), XS__forcedoorclose, file);
 	newXS(strcpy(buf, "forcedooropen"), XS__forcedooropen, file);
 	newXS(strcpy(buf, "getaaexpmodifierbycharid"), XS__getaaexpmodifierbycharid, file);
+	newXS(strcpy(buf, "getbodytypename"), XS__getbodytypename, file);
 	newXS(strcpy(buf, "getcharidbyname"), XS__getcharidbyname, file);
 	newXS(strcpy(buf, "getclassname"), XS__getclassname, file);
 	newXS(strcpy(buf, "getcleannpcnamebyid"), XS__getcleannpcnamebyid, file);
+	newXS(strcpy(buf, "getconsiderlevelname"), XS__getconsiderlevelname, file);
 	newXS(strcpy(buf, "gethexcolorcode"), XS__gethexcolorcode, file);
 	newXS(strcpy(buf, "getcurrencyid"), XS__getcurrencyid, file);
 	newXS(strcpy(buf, "getexpmodifierbycharid"), XS__getexpmodifierbycharid, file);
@@ -8315,16 +8419,20 @@ EXTERN_C XS(boot_quest) {
 	newXS(strcpy(buf, "get_expedition_by_zone_instance"), XS__get_expedition_by_zone_instance, file);
 	newXS(strcpy(buf, "get_expedition_lockout_by_char_id"), XS__get_expedition_lockout_by_char_id, file);
 	newXS(strcpy(buf, "get_expedition_lockouts_by_char_id"), XS__get_expedition_lockouts_by_char_id, file);
+	newXS(strcpy(buf, "getfactionname"), XS__getfactionname, file);
 	newXS(strcpy(buf, "getinventoryslotid"), XS__getinventoryslotid, file);
 	newXS(strcpy(buf, "getitemname"), XS__getitemname, file);
 	newXS(strcpy(buf, "getItemName"), XS_qc_getItemName, file);
 	newXS(strcpy(buf, "getitemstat"), XS__getitemstat, file);
+	newXS(strcpy(buf, "getlanguagename"), XS__getlanguagename, file);
+	newXS(strcpy(buf, "getldonthemename"), XS__getldonthemename, file);
 	newXS(strcpy(buf, "getnpcnamebyid"), XS__getnpcnamebyid, file);
 	newXS(strcpy(buf, "get_spawn_condition"), XS__get_spawn_condition, file);
 	newXS(strcpy(buf, "getcharnamebyid"), XS__getcharnamebyid, file);
 	newXS(strcpy(buf, "getcurrencyitemid"), XS__getcurrencyitemid, file);
 	newXS(strcpy(buf, "getgendername"), XS__getgendername, file);
 	newXS(strcpy(buf, "getdeityname"), XS__getdeityname, file);
+	newXS(strcpy(buf, "getenvironmentaldamagename"), XS__getenvironmentaldamagename, file);
 	newXS(strcpy(buf, "getguildnamebyid"), XS__getguildnamebyid, file);
 	newXS(strcpy(buf, "getguildidbycharid"), XS__getguildidbycharid, file);
 	newXS(strcpy(buf, "getgroupidbycharid"), XS__getgroupidbycharid, file);

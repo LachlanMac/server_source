@@ -80,7 +80,6 @@ SET(zone_sources
     fearpath.cpp
     forage.cpp
     global_loot_manager.cpp
-    gm_commands/door_manipulation.cpp
     groups.cpp
     guild.cpp
     guild_mgr.cpp
@@ -200,7 +199,6 @@ SET(zone_headers
     fastmath.h
     forage.h
     global_loot_manager.h
-    gm_commands/door_manipulation.h
     groups.h
     guild_mgr.h
     hate_list.h
@@ -294,6 +292,7 @@ SET(gm_commands
     gm_commands/aggrozone.cpp
     gm_commands/ai.cpp
     gm_commands/appearance.cpp
+    gm_commands/appearanceeffects.cpp
     gm_commands/attack.cpp
     gm_commands/augmentitem.cpp
     gm_commands/ban.cpp
@@ -308,6 +307,7 @@ SET(gm_commands
     gm_commands/copycharacter.cpp
     gm_commands/corpse.cpp
     gm_commands/corpsefix.cpp
+    gm_commands/countitem.cpp
     gm_commands/cvs.cpp
     gm_commands/damage.cpp
     gm_commands/databuckets.cpp
@@ -325,6 +325,8 @@ SET(gm_commands
     gm_commands/distance.cpp
     gm_commands/doanim.cpp
     gm_commands/door.cpp
+    gm_commands/door_manipulation.cpp
+    gm_commands/door_manipulation.h
     gm_commands/dye.cpp
     gm_commands/dz.cpp
     gm_commands/dzkickplayers.cpp
@@ -440,6 +442,7 @@ SET(gm_commands
     gm_commands/permaclass.cpp
     gm_commands/permagender.cpp
     gm_commands/permarace.cpp
+    gm_commands/petitems.cpp
     gm_commands/petitioninfo.cpp
     gm_commands/petname.cpp
     gm_commands/pf.cpp
@@ -456,6 +459,7 @@ SET(gm_commands
     gm_commands/refreshgroup.cpp
     gm_commands/reloadaa.cpp
     gm_commands/reloadallrules.cpp
+    gm_commands/reloadcontentflags.cpp
     gm_commands/reloademote.cpp
     gm_commands/reloadlevelmods.cpp
     gm_commands/reloadmerchants.cpp
@@ -467,6 +471,7 @@ SET(gm_commands
     gm_commands/reloadworld.cpp
     gm_commands/reloadworldrules.cpp
     gm_commands/reloadzps.cpp
+    gm_commands/removeitem.cpp
     gm_commands/repop.cpp
     gm_commands/resetaa.cpp
     gm_commands/resetaa_timer.cpp
@@ -485,12 +490,16 @@ SET(gm_commands
     gm_commands/set_adventure_points.cpp
     gm_commands/setaapts.cpp
     gm_commands/setaaxp.cpp
+    gm_commands/setaltcurrency.cpp
     gm_commands/setanim.cpp
     gm_commands/setcrystals.cpp
+    gm_commands/setendurance.cpp
     gm_commands/setfaction.cpp
     gm_commands/setgraveyard.cpp
+    gm_commands/sethp.cpp
     gm_commands/setlanguage.cpp
     gm_commands/setlsinfo.cpp
+    gm_commands/setmana.cpp
     gm_commands/setpass.cpp
     gm_commands/setpvppoints.cpp
     gm_commands/setskill.cpp
@@ -535,12 +544,16 @@ SET(gm_commands
     gm_commands/undyeme.cpp
     gm_commands/unfreeze.cpp
     gm_commands/unlock.cpp
+    gm_commands/unmemspell.cpp
+    gm_commands/unmemspells.cpp
     gm_commands/unscribespell.cpp
     gm_commands/unscribespells.cpp
+    gm_commands/updatechecksum.cpp
     gm_commands/untraindisc.cpp
     gm_commands/untraindiscs.cpp
     gm_commands/uptime.cpp
     gm_commands/version.cpp
+    gm_commands/viewcurrencies.cpp
     gm_commands/viewnpctype.cpp
     gm_commands/viewpetition.cpp
     gm_commands/viewzoneloot.cpp
@@ -559,7 +572,6 @@ SET(gm_commands
     gm_commands/zonebootup.cpp
     gm_commands/zonelock.cpp
     gm_commands/zoneshutdown.cpp
-    gm_commands/zonespawn.cpp
     gm_commands/zonestatus.cpp
     gm_commands/zopp.cpp
     gm_commands/zsafecoords.cpp
@@ -567,7 +579,10 @@ SET(gm_commands
     gm_commands/zsky.cpp
     gm_commands/zstats.cpp
     gm_commands/zunderworld.cpp
-    gm_commands/zuwcoords.cpp
+)
+
+SOURCE_GROUP(gm_commands FILES
+    ${gm_commands}
 )
 
 ADD_EXECUTABLE(zone ${zone_sources} ${zone_headers} ${gm_commands})

@@ -163,7 +163,9 @@ public:
 	void UnmemSpellBySpellID(int32 spell_id);
 	void UnmemSpellAll();
 	void UnmemSpellAll(bool update_client);
+	int FindEmptyMemSlot();
 	uint16 FindMemmedSpellBySlot(int slot);
+	int FindMemmedSpellBySpellID(uint16 spell_id);
 	int MemmedCount();
 	luabind::object GetLearnableDisciplines(lua_State* L);
 	luabind::object GetLearnableDisciplines(lua_State* L, uint8 min_level);
@@ -181,6 +183,8 @@ public:
 	void UnscribeSpell(int slot, bool update_client);
 	void UnscribeSpellAll();
 	void UnscribeSpellAll(bool update_client);
+	void UnscribeSpellBySpellID(uint16 spell_id);
+	void UnscribeSpellBySpellID(uint16 spell_id, bool update_client);
 	void TrainDisc(int itemid);
 	uint16 LearnDisciplines(uint8 min_level, uint8 max_level);
 	void TrainDiscBySpellID(int32 spell_id);
@@ -239,6 +243,9 @@ public:
 	void ResetTrade();
 	uint32 GetDisciplineTimer(uint32 timer_id);
 	void ResetDisciplineTimer(uint32 timer_id);
+	void ResetCastbarCooldownBySlot(int slot);
+	void ResetAllCastbarCooldowns();
+	void ResetCastbarCooldownBySpellID(uint32 spell_id);
 	void ResetAllDisciplineTimers();
 	bool UseDiscipline(int spell_id, int target_id);
 	bool HasDisciplineLearned(uint16 spell_id);
@@ -385,6 +392,12 @@ public:
 	void RemoveItem(uint32 item_id);
 	void RemoveItem(uint32 item_id, uint32 quantity);
 	void SetGMStatus(uint32 newStatus);
+	void AddItem(luabind::object item_table);
+
+	int GetEnvironmentDamageModifier();
+	void SetEnvironmentDamageModifier(int value);
+	bool GetInvulnerableEnvironmentDamage();
+	void SetInvulnerableEnvironmentDamage(bool value);
 
 	void SetPrimaryWeaponOrnamentation(uint32 model_id);
 	void SetSecondaryWeaponOrnamentation(uint32 model_id);

@@ -20,6 +20,7 @@
 #include "../common/features.h"
 #include "../common/rulesys.h"
 #include "../common/string_util.h"
+
 #include "client.h"
 #include "groups.h"
 #include "mob.h"
@@ -232,6 +233,9 @@ float static GetConLevelModifierPercent(uint8 conlevel)
 {
 	switch (conlevel)
 	{
+	case CON_GRAY:
+		return 0.15f;
+		break;
 	case CON_GREEN:
 		return (float)RuleI(Character, GreenModifier) / 100;
 		break;
@@ -1049,11 +1053,12 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 
 	if (membercount == 0)
 		return;
-
+	double zoneexpmod = 1;
 	for (i = 0; i < MAX_GROUP_MEMBERS; i++) {
 		if (members[i] != nullptr && members[i]->IsClient()) // If Group Member is Client
 		{
 			Client *cmember = members[i]->CastToClient();
+			zoneexpmod = cmember->GetEXPModifier(zone->GetZoneID());
 			// add exp + exp cap
 			int16 diff = cmember->GetLevel() - maxlevel;  //the difference between the highest level person in the
 			int16 maxdiff = -(cmember->GetLevel()*15/10 - cmember->GetLevel());
@@ -1065,24 +1070,23 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 				cmember->AddEXP( tmp < tmp2 ? tmp : tmp2, conlevel );
 			}
 		}
-		#ifdef BOTS
+	}
+	#ifdef BOTS
+	for (i = 0; i < MAX_GROUP_MEMBERS; i++) {
 		if(members[i] != nullptr && members[i]->IsBot()){ // If Group Member is Bot
 			Bot *cmember = members[i]->CastToBot();
-			// add exp + exp cap
-			
 			uint32 tmp = (cmember->GetLevel()+3) * (cmember->GetLevel()+3) * 75 * 35 / 10;
 			uint32 tmp2 = groupexp / membercount;
-
 			uint32 exp = tmp < tmp2 ? tmp : tmp2;
-			
 			if (RuleB(Character, UseXPConScaling))
-			{	
+			{
 				exp = exp * GetConLevelModifierPercent(conlevel);
 			}
+			exp = exp * zoneexpmod;
 			cmember->AddExperience(exp);
-		}
-		#endif				
+		}				
 	}
+	#endif	
 }
 
 void Raid::SplitExp(uint32 exp, Mob* other) {

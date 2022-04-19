@@ -1669,53 +1669,6 @@ int32 Bot::GenerateBaseHitPoints() {
 	return new_base_hp;
 }
 
-void Bot::LoadAAs() {
-	
-	int base_points = 20 + CalculateAAPoints();
-
-	aa_ranks.clear();
-
-	int id = 0;
-	int points = 0;
-	auto iter = zone->aa_abilities.begin();
-	while(iter != zone->aa_abilities.end()) {
-		AA::Ability *ability = (*iter).second.get();
-
-		//skip expendables
-		if(!ability->first || ability->charges > 0) {
-			++iter;
-			continue;
-		}
-
-		id = ability->first->id;
-		points = 0;
-
-		AA::Rank *current = ability->first;
-		
-		if (current->level_req > GetLevel()) {
-			++iter;
-			continue;
-		}
-
-		while(current) {
-			if(!CanUseAlternateAdvancementRank(current)) {
-				current = nullptr;
-			} else {
-				current = current->next;
-				points++;
-			}
-		}
-
-		if(points > 0) {
-			base_points--;
-			if(base_points >= 0){
-				SetAA(id, points);
-			}
-		}
-
-		++iter;
-	}
-}
 
 bool Bot::IsValidRaceClassCombo()
 {
@@ -1753,6 +1706,29 @@ bool Bot::IsValidName(std::string& name)
 	}
 
 	return true;
+}
+
+
+
+bool Bot::SaveExp(){
+
+	auto bot_owner = GetBotOwner();
+	if (!bot_owner)
+		return false;
+	if(!GetBotID()) { // New bot record
+		uint32 bot_id = 0;
+		if (!database.botdb.SaveNewBot(this, bot_id) || !bot_id) {
+			bot_owner->Message(Chat::Red, "%s '%s'", BotDatabase::fail::SaveNewBot(), GetCleanName());
+			return false;	
+		}
+		SetBotID(bot_id);
+	}
+	else { // Update existing bot record
+		if (!database.botdb.SaveExp(this)) {
+			bot_owner->Message(Chat::Red, "%s '%s'", "Save exp for ", GetCleanName());
+			return false;
+		}
+	}
 }
 
 bool Bot::Save()
@@ -3253,7 +3229,7 @@ void Bot::AI_Process()
 					TriggerDefensiveProcs(tar, EQ::invslot::slotPrimary, false);
 
 					TEST_COMBATANTS();
-					TryWeaponProc(p_item, tar, EQ::invslot::slotPrimary);
+					TryCombatProcs(p_item, tar, EQ::invslot::slotPrimary);
 
 					// bool tripleSuccess = false;
 
@@ -3342,7 +3318,7 @@ void Bot::AI_Process()
 								Attack(tar, EQ::invslot::slotSecondary);	// Single attack with offhand
 
 								TEST_COMBATANTS();
-								TryWeaponProc(s_item, tar, EQ::invslot::slotSecondary);
+								TryCombatProcs(s_item, tar, EQ::invslot::slotSecondary);
 
 								TEST_COMBATANTS();
 								if (CanThisClassDoubleAttack() && CheckBotDoubleAttack()) {
@@ -4673,7 +4649,6 @@ bool Bot::Death(Mob *killerMob, int32 damage, uint16 spell_id, EQ::skills::Skill
 		give_exp_client = give_exp->CastToClient();
 
 
-
 	bool IsLdonTreasure = (this->GetClass() == LDON_TREASURE);
 	if(entity_list.GetCorpseByID(GetID()))
 		entity_list.GetCorpseByID(GetID())->Depop();
@@ -4918,7 +4893,7 @@ bool Bot::Attack(Mob* other, int Hand, bool FromRiposte, bool IsStrikethrough, b
 
 		my_hit.tohit = GetTotalToHit(my_hit.skill, hit_chance_bonus);
 
-		DoAttack(other, my_hit, opts);
+		DoAttack(other, my_hit, opts, FromRiposte);
 
 		LogCombat("Final damage after all reductions: [{}]", my_hit.damage_done);
 	} else {
@@ -5287,7 +5262,7 @@ int32 Bot::CalcBotAAFocus(focusType type, uint32 aa_ID, uint32 points, uint16 sp
 	return (value * lvlModifier / 100);
 }
 
-int32 Bot::GetBotFocusEffect(focusType bottype, uint16 spell_id) {
+int32 Bot::GetBotFocusEffect(focusType bottype, uint16 spell_id, bool from_buff_tic) {
 	if (IsBardSong(spell_id) && bottype != focusFcBaseEffects)
 		return 0;
 
@@ -5402,9 +5377,9 @@ int32 Bot::GetBotFocusEffect(focusType bottype, uint16 spell_id) {
 		if(focusspell_tracker && rand_effectiveness && focus_max_real2 != 0)
 			realTotal2 = CalcBotFocusEffect(bottype, focusspell_tracker, spell_id);
 
-		// For effects like gift of mana that only fire once, save the spellid into an array that consists of all available buff slots.
-		if(buff_tracker >= 0 && buffs[buff_tracker].hit_number > 0)
-			m_spellHitsLeft[buff_tracker] = focusspell_tracker;
+		if (!from_buff_tic && buff_tracker >= 0 && buffs[buff_tracker].hit_number > 0) {
+			CheckNumHitsRemaining(NumHit::MatchingSpells, buff_tracker);
+		}
 	}
 
 	// AA Focus
@@ -6705,119 +6680,210 @@ int32 Bot::GetActSpellDamage(uint16 spell_id, int32 value, Mob* target) {
 		return value;
 
 	bool Critical = false;
-	int32 value_BaseEffect = 0;
-	value_BaseEffect = (value + (value*GetBotFocusEffect(focusFcBaseEffects, spell_id) / 100));
+	int32 base_value = value;
+	int chance = 0;
+
 	// Need to scale HT damage differently after level 40! It no longer scales by the constant value in the spell file. It scales differently, instead of 10 more damage per level, it does 30 more damage per level. So we multiply the level minus 40 times 20 if they are over level 40.
-	if ( (spell_id == SPELL_HARM_TOUCH || spell_id == SPELL_HARM_TOUCH2 || spell_id == SPELL_IMP_HARM_TOUCH ) && GetLevel() > 40)
-		value -= ((GetLevel() - 40) * 20);
+	if ((spell_id == SPELL_HARM_TOUCH || spell_id == SPELL_HARM_TOUCH2 || spell_id == SPELL_IMP_HARM_TOUCH ) && GetLevel() > 40)
+		value -= (GetLevel() - 40) * 20;
 
 	//This adds the extra damage from the AA Unholy Touch, 450 per level to the AA Improved Harm TOuch.
 	if (spell_id == SPELL_IMP_HARM_TOUCH) //Improved Harm Touch
-		value -= (GetAA(aaUnholyTouch) * 450); //Unholy Touch
+		value -= GetAA(aaUnholyTouch) * 450; //Unholy Touch
 
-	int chance = RuleI(Spells, BaseCritChance);
-		chance += (itembonuses.CriticalSpellChance + spellbonuses.CriticalSpellChance + aabonuses.CriticalSpellChance);
+	chance = RuleI(Spells, BaseCritChance); //Wizard base critical chance is 2% (Does not scale with level)
+	chance += itembonuses.CriticalSpellChance + spellbonuses.CriticalSpellChance + aabonuses.CriticalSpellChance;
+	chance += itembonuses.FrenziedDevastation + spellbonuses.FrenziedDevastation + aabonuses.FrenziedDevastation;
 
-	if (chance > 0) {
-		int32 ratio = RuleI(Spells, BaseCritRatio);
+	//Crtical Hit Calculation pathway
+	if (chance > 0 || (GetClass() == WIZARD && GetLevel() >= RuleI(Spells, WizCritLevel))) {
+
+		 int32 ratio = RuleI(Spells, BaseCritRatio); //Critical modifier is applied from spell effects only. Keep at 100 for live like criticals.
+
+		//Improved Harm Touch is a guaranteed crit if you have at least one level of SCF.
 		if (spell_id == SPELL_IMP_HARM_TOUCH && (GetAA(aaSpellCastingFury) > 0) && (GetAA(aaUnholyTouch) > 0))
-			chance = 100;
+			 chance = 100;
 
-		if (zone->random.Int(1, 100) <= chance){
+		if (spells[spell_id].override_crit_chance > 0 && chance > spells[spell_id].override_crit_chance)
+			chance = spells[spell_id].override_crit_chance;
+
+		if (zone->random.Roll(chance)) {
 			Critical = true;
-			ratio += (itembonuses.SpellCritDmgIncrease + spellbonuses.SpellCritDmgIncrease + aabonuses.SpellCritDmgIncrease);
-			ratio += (itembonuses.SpellCritDmgIncNoStack + spellbonuses.SpellCritDmgIncNoStack + aabonuses.SpellCritDmgIncNoStack);
-		} else if (GetClass() == WIZARD && (GetLevel() >= RuleI(Spells, WizCritLevel)) && (zone->random.Int(1, 100) <= RuleI(Spells, WizCritChance))) {
-			ratio = zone->random.Int(1, 100);
-			Critical = true;
+			ratio += itembonuses.SpellCritDmgIncrease + spellbonuses.SpellCritDmgIncrease + aabonuses.SpellCritDmgIncrease;
+			ratio += itembonuses.SpellCritDmgIncNoStack + spellbonuses.SpellCritDmgIncNoStack + aabonuses.SpellCritDmgIncNoStack;
 		}
-		ratio += RuleI(Spells, WizCritRatio);
+
+		else if (GetClass() == WIZARD || (IsMerc() && GetClass() == CASTERDPS)) {
+			if ((GetLevel() >= RuleI(Spells, WizCritLevel)) && zone->random.Roll(RuleI(Spells, WizCritChance))){
+				//Wizard innate critical chance is calculated seperately from spell effect and is not a set ratio. (20-70 is parse confirmed)
+				ratio += zone->random.Int(20,70);
+				Critical = true;
+			}
+		}
+
+		if (GetClass() == WIZARD)
+			ratio += RuleI(Spells, WizCritRatio); //Default is zero
+
 		if (Critical) {
-			value = (value_BaseEffect * ratio / 100);
-			value += (value_BaseEffect * GetBotFocusEffect(focusImprovedDamage, spell_id) / 100);
-			value += (value_BaseEffect * GetBotFocusEffect(focusImprovedDamage2, spell_id) / 100);
-			value += (int(value_BaseEffect * GetBotFocusEffect(focusFcDamagePctCrit, spell_id) / 100) * ratio / 100);
+
+			value = base_value*ratio/100;
+
+			value += base_value*GetBotFocusEffect(focusImprovedDamage, spell_id)/100;
+			value += base_value*GetBotFocusEffect(focusImprovedDamage2, spell_id)/100;
+
+			value += int(base_value*GetBotFocusEffect(focusFcDamagePctCrit, spell_id)/100)*ratio/100;
+			value += int(base_value*GetBotFocusEffect(focusFcAmplifyMod, spell_id) / 100)*ratio / 100;
+
 			if (target) {
-				value += (int(value_BaseEffect * target->GetVulnerability(this, spell_id, 0) / 100) * ratio / 100);
+				value += int(base_value*target->GetVulnerability(this, spell_id, 0)/100)*ratio/100;
 				value -= target->GetFcDamageAmtIncoming(this, spell_id);
 			}
 
-			value -= (GetBotFocusEffect(focusFcDamageAmtCrit, spell_id) * ratio / 100);
+			value -= GetBotFocusEffect(focusFcDamageAmtCrit, spell_id)*ratio/100;
 
 			value -= GetBotFocusEffect(focusFcDamageAmt, spell_id);
 			value -= GetBotFocusEffect(focusFcDamageAmt2, spell_id);
+			value -= GetBotFocusEffect(focusFcAmplifyAmt, spell_id);
 
-			if(itembonuses.SpellDmg && spells[spell_id].classes[(GetClass() % 17) - 1] >= GetLevel() - 5)
-				value += (GetExtraSpellAmt(spell_id, itembonuses.SpellDmg, value) * ratio / 100);
+			if ((RuleB(Spells, IgnoreSpellDmgLvlRestriction) || spells[spell_id].classes[(GetClass() % 17) - 1] >= GetLevel() - 5) && !spells[spell_id].no_heal_damage_item_mod && itembonuses.SpellDmg)
+				value -= GetExtraSpellAmt(spell_id, itembonuses.SpellDmg, base_value) * ratio / 100;
 
-			entity_list.MessageClose(this, false, 100, Chat::SpellCrit, "%s delivers a critical blast! (%d)", GetName(), -value);
+			entity_list.MessageCloseString(
+				this, true, 100, Chat::SpellCrit,
+				OTHER_CRIT_BLAST, GetName(), itoa(-value));
 
 			return value;
 		}
 	}
+	//Non Crtical Hit Calculation pathway
+	value = base_value;
 
-	value = value_BaseEffect;
-	value += (value_BaseEffect * GetBotFocusEffect(focusImprovedDamage, spell_id) / 100);
-	value += (value_BaseEffect * GetBotFocusEffect(focusImprovedDamage2, spell_id) / 100);
-	value += (value_BaseEffect * GetBotFocusEffect(focusFcDamagePctCrit, spell_id) / 100);
+	value += base_value*GetBotFocusEffect(focusImprovedDamage, spell_id)/100;
+	value += base_value*GetBotFocusEffect(focusImprovedDamage2, spell_id)/100;
+
+	value += base_value*GetBotFocusEffect(focusFcDamagePctCrit, spell_id)/100;
+	value += base_value*GetBotFocusEffect(focusFcAmplifyMod, spell_id)/100;
+
 	if (target) {
-		value += (value_BaseEffect * target->GetVulnerability(this, spell_id, 0) / 100);
+		value += base_value*target->GetVulnerability(this, spell_id, 0)/100;
 		value -= target->GetFcDamageAmtIncoming(this, spell_id);
 	}
 
 	value -= GetBotFocusEffect(focusFcDamageAmtCrit, spell_id);
 	value -= GetBotFocusEffect(focusFcDamageAmt, spell_id);
 	value -= GetBotFocusEffect(focusFcDamageAmt2, spell_id);
-	if(itembonuses.SpellDmg && spells[spell_id].classes[(GetClass() % 17) - 1] >= GetLevel() - 5)
-		value += GetExtraSpellAmt(spell_id, itembonuses.SpellDmg, value);
+	value -= GetBotFocusEffect(focusFcAmplifyAmt, spell_id);
+
+	if ((RuleB(Spells, IgnoreSpellDmgLvlRestriction) || spells[spell_id].classes[(GetClass() % 17) - 1] >= GetLevel() - 5) && !spells[spell_id].no_heal_damage_item_mod && itembonuses.SpellDmg)
+		value -= GetExtraSpellAmt(spell_id, itembonuses.SpellDmg, base_value);
 
 	return value;
- }
+}
 
 int32 Bot::GetActSpellHealing(uint16 spell_id, int32 value, Mob* target) {
 	if (target == nullptr)
 		target = this;
 
-	int32 value_BaseEffect = 0;
-	int32 chance = 0;
-	int8 modifier = 1;
-	bool Critical = false;
-	value_BaseEffect = (value + (value*GetBotFocusEffect(focusFcBaseEffects, spell_id) / 100));
-	value = value_BaseEffect;
-	value += int(value_BaseEffect*GetBotFocusEffect(focusImprovedHeal, spell_id) / 100);
-	if(spells[spell_id].buff_duration < 1) {
-		chance += (itembonuses.CriticalHealChance + spellbonuses.CriticalHealChance + aabonuses.CriticalHealChance);
-		chance += target->GetFocusIncoming(focusFcHealPctCritIncoming, SE_FcHealPctCritIncoming, this, spell_id);
-		if (spellbonuses.CriticalHealDecay)
-			chance += GetDecayEffectValue(spell_id, SE_CriticalHealDecay);
+	int32 base_value = value;
+	int16 critical_chance = 0;
+	int8  critical_modifier = 1;
 
-		if(chance && (zone->random.Int(0, 99) < chance)) {
-			Critical = true;
-			modifier = 2;
+	if (spells[spell_id].buff_duration < 1) {
+		critical_chance += itembonuses.CriticalHealChance + spellbonuses.CriticalHealChance + aabonuses.CriticalHealChance;
+
+		if (spellbonuses.CriticalHealDecay) {
+			critical_chance += GetDecayEffectValue(spell_id, SE_CriticalHealDecay);
+		}
+	}
+	else {
+		critical_chance = itembonuses.CriticalHealOverTime + spellbonuses.CriticalHealOverTime + aabonuses.CriticalHealOverTime;
+
+		if (spellbonuses.CriticalRegenDecay) {
+			critical_chance += GetDecayEffectValue(spell_id, SE_CriticalRegenDecay);
+		}
+	}
+
+	if (critical_chance) {
+
+		if (spells[spell_id].override_crit_chance > 0 && critical_chance > spells[spell_id].override_crit_chance) {
+			critical_chance = spells[spell_id].override_crit_chance;
 		}
 
-		value *= modifier;
-		value += (GetBotFocusEffect(focusFcHealAmtCrit, spell_id) * modifier);
-		value += GetBotFocusEffect(focusFcHealAmt, spell_id);
-		value += target->GetFocusIncoming(focusFcHealAmtIncoming, SE_FcHealAmtIncoming, this, spell_id);
+		if (zone->random.Roll(critical_chance)) {
+			critical_modifier = 2; //At present time no critical heal amount modifier SPA exists.
+		}
+	}
 
-		if(itembonuses.HealAmt && spells[spell_id].classes[(GetClass() % 17) - 1] >= GetLevel() - 5)
-			value += (GetExtraSpellAmt(spell_id, itembonuses.HealAmt, value) * modifier);
+	if (GetClass() == CLERIC) {
+		value += int(base_value*RuleI(Spells, ClericInnateHealFocus) / 100);  //confirmed on live parsing clerics get an innate 5 pct heal focus
+	}
+	value += int(base_value*GetBotFocusEffect(focusImprovedHeal, spell_id) / 100);
+	value += int(base_value*GetBotFocusEffect(focusFcAmplifyMod, spell_id) / 100);
 
-		value += (value * target->GetHealRate() / 100);
-		if (Critical)
-			entity_list.MessageClose(this, false, 100, Chat::SpellCrit, "%s performs an exceptional heal! (%d)", GetName(), value);
+	// Instant Heals
+	if (spells[spell_id].buff_duration < 1) {
+
+		/* Mob::GetFocusEffect is not accessible from this context. This focus effect was not accounted for in previous version of this method at all, either
+		if (target) {
+			value += int(base_value * target->GetFocusEffect(focusFcHealPctIncoming, spell_id, this)/100,nullptr); //SPA 393 Add before critical
+			value += int(base_value * target->GetFocusEffect(focusFcHealPctCritIncoming, spell_id, this)/100,nullptr); //SPA 395 Add before critical (?)
+		}
+		*/
+
+		value += GetBotFocusEffect(focusFcHealAmtCrit, spell_id); //SPA 396 Add before critical
+
+		//Using IgnoreSpellDmgLvlRestriction to also allow healing to scale
+		if ((RuleB(Spells, IgnoreSpellDmgLvlRestriction) || spells[spell_id].classes[(GetClass() % 17) - 1] >= GetLevel() - 5) && !spells[spell_id].no_heal_damage_item_mod && itembonuses.HealAmt) {
+			value += GetExtraSpellAmt(spell_id, itembonuses.HealAmt, base_value);//Item Heal Amt Add before critical
+		}
+
+		if (target) {
+			value += value * target->GetHealRate() / 100;  //SPA 120 modifies value after Focus Applied but before critical
+		}
+
+		/*
+			Apply critical hit modifier
+		*/
+
+		value *= critical_modifier;
+		value += GetBotFocusEffect(focusFcHealAmt, spell_id); //SPA 392 Add after critical
+		value += GetBotFocusEffect(focusFcAmplifyAmt, spell_id); //SPA 508 ? Add after critical
+
+		/*
+		if (target) {
+			value += target->GetBotFocusEffect(focusFcHealAmtIncoming, spell_id, this); //SPA 394 Add after critical
+		}
+		*/
+
+		if (critical_modifier > 1) {
+			entity_list.MessageCloseString(
+				this, true, 100, Chat::SpellCrit,
+				OTHER_CRIT_HEAL, GetName(), itoa(value));
+		}
 
 		return value;
-	} else {
-		chance = (itembonuses.CriticalHealOverTime + spellbonuses.CriticalHealOverTime + aabonuses.CriticalHealOverTime);
-		chance += target->GetFocusIncoming(focusFcHealPctCritIncoming, SE_FcHealPctCritIncoming, this, spell_id);
-		if (spellbonuses.CriticalRegenDecay)
-			chance += GetDecayEffectValue(spell_id, SE_CriticalRegenDecay);
-
-		if(chance && (zone->random.Int(0,99) < chance))
-			return (value * 2);
 	}
+
+	//Heal over time spells. [Heal Rate and Additional Healing effects do not increase this value]
+	else {
+		//Using IgnoreSpellDmgLvlRestriction to also allow healing to scale
+		if (RuleB(Spells, HOTsScaleWithHealAmt)) {
+			int duration = CalcBuffDuration(this, target, spell_id);
+			int32 extra_heal = 0;
+			if ((RuleB(Spells, IgnoreSpellDmgLvlRestriction) || spells[spell_id].classes[(GetClass() % 17) - 1] >= GetLevel() - 5) && !spells[spell_id].no_heal_damage_item_mod && itembonuses.HealAmt) {
+				extra_heal += GetExtraSpellAmt(spell_id, itembonuses.HealAmt, base_value);
+			}
+
+			if (duration > 0 && extra_heal > 0) {
+				extra_heal /= duration;
+				value += extra_heal;
+			}
+		}
+
+		if (critical_chance && zone->random.Roll(critical_chance))
+			value *= critical_modifier;
+	}
+
 	return value;
 }
 
@@ -7116,7 +7182,8 @@ bool Bot::CastSpell(uint16 spell_id, uint16 target_id, EQ::spells::CastingSlot s
 			bardsong_timer.Disable();
 		}
 
-		Result = DoCastSpell(spell_id, target_id, slot, cast_time, mana_cost, oSpellWillFinish, item_slot, aa_id);
+		Result = Mob::CastSpell(spell_id, target_id, slot, cast_time, mana_cost, oSpellWillFinish, item_slot, 0xFFFFFFFF, 0, resist_adjust, aa_id);
+	
 	}
 	return Result;
 }
@@ -7361,7 +7428,7 @@ void Bot::GenerateSpecialAttacks() {
 
 bool Bot::DoFinishedSpellAETarget(uint16 spell_id, Mob* spellTarget, EQ::spells::CastingSlot slot, bool& stopLogic) {
 	if(GetClass() == BARD) {
-		if(!ApplyNextBardPulse(bardsong, this, bardsong_slot))
+		if(!ApplyBardPulse(bardsong, this, bardsong_slot))
 			InterruptSpell(SONG_ENDS_ABRUPTLY, 0x121, bardsong);
 
 		stopLogic = true;
@@ -7449,6 +7516,8 @@ void Bot::CalcBonuses() {
 	CalcSpellBonuses(&spellbonuses);
 	CalcAABonuses(&aabonuses);
 	SetAttackTimer();
+	CalcSeeInvisibleLevel();
+	CalcInvisibleLevel();
 	CalcATK();
 	CalcSTR();
 	CalcSTA();
@@ -8799,7 +8868,7 @@ void Bot::CalcBotStats(bool showtext) {
 		GetBotOwner()->Message(Chat::Yellow, "Unless you are experiencing heavy lag, you should delete and remake this bot.");
 	}*/
 
-	//if(GetBotOwner()->GetLevel() < GetLevel())
+	//if(GetBotOwner()->GetLevel() != GetLevel())
 	//	SetLevel(GetBotOwner()->GetLevel());
 
 	for (int sindex = 0; sindex <= EQ::skills::HIGHEST_SKILL; ++sindex) {
@@ -9561,8 +9630,15 @@ bool Bot::UseDiscipline(uint32 spell_id, uint32 target) {
 			if(spells[spell_id].timer_id > 0 && spells[spell_id].timer_id < MAX_DISCIPLINE_TIMERS)
 				SetDisciplineRecastTimer(spells[spell_id].timer_id, spell.recast_time);
 		} else {
-			uint32 remain = (GetDisciplineRemainingTime(this, spells[spell_id].timer_id) / 1000);
-			GetOwner()->Message(Chat::White, "%s can use this discipline in %d minutes %d seconds.", GetCleanName(), (remain / 60), (remain % 60));
+			uint32 remaining_time = (GetDisciplineRemainingTime(this, spells[spell_id].timer_id) / 1000);			
+			GetOwner()->Message(
+				Chat::White,
+				fmt::format(
+					"{} can use this discipline in {}.",
+					GetCleanName(),
+					ConvertSecondsToTime(remaining_time)
+				).c_str()
+			);
 			return false;
 		}
 	}
@@ -9810,23 +9886,137 @@ void Bot::StopMoving(float new_heading)
 	Mob::StopMoving(new_heading);
 }
 
+/*  THIS FUNCTION WAS REPLACED BY CUSTOM AA LOGIC
+void Bot::LoadAAs() {
+	
+	aa_ranks.clear();
+
+	int id = 0;
+	int points = 0;
+	auto iter = zone->aa_abilities.begin();
+	while(iter != zone->aa_abilities.end()) {
+		AA::Ability *ability = (*iter).second.get();
+
+		//skip expendables
+		if(!ability->first || ability->charges > 0) {
+			++iter;
+			continue;
+		}
+
+		id = ability->first->id;
+		points = 0;
+
+		AA::Rank *current = ability->first;
+		
+		if (current->level_req > GetLevel()) {
+			++iter;
+			continue;
+		}
+
+		while(current) {
+			if(!CanUseAlternateAdvancementRank(current)) {
+				current = nullptr;
+			} else {
+				current = current->next;
+				points++;
+			}
+		}
+
+		if(points > 0) {
+			SetAA(id, points);
+		}
+
+		++iter;
+	}
+}
+*/
+
+void Bot::LoadAAs() {
+	
+	int base_points = 20 + CalculateAAPoints();
+	aa_ranks.clear();
+	int id = 0;
+	int points = 0;
+	auto iter = zone->aa_abilities.begin();
+	while(iter != zone->aa_abilities.end()) {
+		AA::Ability *ability = (*iter).second.get();
+		//skip expendables
+		if(!ability->first || ability->charges > 0) {
+			++iter;
+			continue;
+		}
+		id = ability->first->id;
+		points = 0;
+		AA::Rank *current = ability->first;
+		if (current->level_req > GetLevel()) {
+			++iter;
+			continue;
+		}
+		while(current) {
+			if(!CanUseAlternateAdvancementRank(current)) {
+				current = nullptr;
+			} else {
+				current = current->next;
+				points++;
+			}
+		}
+		if(points > 0) {
+			base_points--;
+			if(base_points >= 0){
+				SetAA(id, points);
+			}
+		}
+		++iter;
+	}
+}
+
 void Bot::SetLevelFromExperience(){
-	SetLevel((int)cbrt(_experience / 1000));
+	SetLevel((int)cbrt(_experience / 1000) + 1);
 }
 
 void Bot::AddExperience(uint exp){
-
-	if(GetLevel() >= 45){
-		int aaExp = float(_aaPercentage / 100) * exp ;
-		_aaExperience+=aaExp;
-		_experience+=(exp - aaExp);
-	}else{
-
-		_experience+= int((float)exp * 1.40f);
-	}
 	
+	_killedmobs++;
+	int add_exp = exp;
+	float totalmod = 1.0;
+	float zemmod = 1.0;
+	//get modifiers
+	if (RuleR(Character, ExpMultiplier) >= 0) {
+		totalmod *= RuleR(Character, ExpMultiplier);
+	}
+	//add the zone exp modifier.
+	if (zone->newzone_data.zone_exp_multiplier >= 0) {
+		zemmod *= zone->newzone_data.zone_exp_multiplier;
+	}
+		//add hotzone modifier if one has been set.
+	if (zone->IsHotzone())
+	{
+		totalmod += RuleR(Zone, HotZoneBonus);
+	}
+	add_exp = uint32(float(add_exp) * totalmod * zemmod);
+
+	//if XP scaling is based on the con of a monster, do that now.
+	
+	if (RuleB(Zone, LevelBasedEXPMods)) {
+		if (zone->level_exp_mod[GetLevel()].ExpMod) {
+			add_exp *= zone->level_exp_mod[GetLevel()].ExpMod;
+		}
+	}
+
+	if (RuleR(Character, FinalExpMultiplier) >= 0) {
+		add_exp *= RuleR(Character, FinalExpMultiplier);
+	}
+
+	if(GetLevel() >= 49){
+		int aaExp = float(_aaPercentage / 100) * add_exp ;
+		_aaExperience+=aaExp;
+		_experience+=(add_exp - aaExp);
+	}else{
+		_experience+= add_exp;
+	}
+
 	//check for level up...
-	int32 newLevel = (int)cbrt(_experience / 1000);
+	int32 newLevel = (int)cbrt(_experience / 1000) + 1;
 	if(newLevel != GetLevel()){
 			if(newLevel <= GetOwner()->CastToClient()->GetLevel()) {
 				SetLevel(newLevel);
@@ -9836,6 +10026,12 @@ void Bot::AddExperience(uint exp){
 				SendAppearancePacket(AT_WhoLevel, newLevel, true, true); // who level change
 			}
 	}
+	//lets just save every 5 mobs...
+	if(_killedmobs > 5){
+		this->SaveExp();
+		_killedmobs = 0;
+	}
+
 }
 
 uint32 Bot::CalculateAAPoints(){

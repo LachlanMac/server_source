@@ -115,6 +115,11 @@ public:
 	std::string getracename(uint16 race_id);
 	std::string getspellname(uint32 spell_id);
 	std::string getskillname(int skill_id);
+	std::string getldonthemename(uint32 theme_id);
+	std::string getfactionname(int faction_id);
+	std::string getlanguagename(int language_id);
+	std::string getbodytypename(uint32 bodytype_id);
+	std::string getconsiderlevelname(uint8 consider_level);
 	void safemove();
 	void rain(int weather);
 	void snow(int weather);
@@ -272,8 +277,8 @@ public:
 	std::string getcharnamebyid(uint32 char_id);
 	uint32 getcharidbyname(const char* name);
 	std::string getclassname(uint8 class_id, uint8 level = 0);
-	int getcurrencyid(uint32 item_id);
-	int getcurrencyitemid(int currency_id);
+	uint32 getcurrencyid(uint32 item_id);
+	uint32 getcurrencyitemid(uint32 currency_id);
 	const char* getguildnamebyid(int guild_id);
 	int getguildidbycharid(uint32 char_id);
 	int getgroupidbycharid(uint32 char_id);
@@ -326,7 +331,8 @@ public:
 	std::string getinventoryslotname(int16 slot_id);
 	int getitemstat(uint32 item_id, std::string stat_identifier);
 	int getspellstat(uint32 spell_id, std::string stat_identifier, uint8 slot = 0);
-	const SPDat_Spell_Struct *getspell(uint32 spell_id);	
+	const SPDat_Spell_Struct *getspell(uint32 spell_id);
+	std::string getenvironmentaldamagename(uint8 damage_type);
 
 	Client *GetInitiator() const;
 	NPC *GetNPC() const;

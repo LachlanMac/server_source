@@ -47,6 +47,8 @@ void Mob::CalcBonuses()
 	CalcMaxMana();
 	SetAttackTimer();
 	CalcAC();
+	CalcSeeInvisibleLevel();
+	CalcInvisibleLevel();
 
 	/* Fast walking NPC's are prone to disappear into walls/hills
 		We set this here because NPC's can cast spells to change walkspeed/runspeed
@@ -80,6 +82,9 @@ void Client::CalcBonuses()
 	CalcEdibleBonuses(&itembonuses);
 	CalcSpellBonuses(&spellbonuses);
 	CalcAABonuses(&aabonuses);
+
+	CalcSeeInvisibleLevel();
+	CalcInvisibleLevel();
 
 	ProcessItemCaps(); // caps that depend on spell/aa bonuses
 
@@ -674,7 +679,7 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 
 		uint8 focus = IsFocusEffect(0, 0, true, effect);
 		if (focus) {
-			newbon->FocusEffects[focus] = static_cast<uint8>(effect);
+			newbon->FocusEffects[focus] = effect;
 			continue;
 		}
 
@@ -867,7 +872,10 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 			newbon->MaxBindWound += base_value;
 			break;
 		case SE_SeeInvis:
-			newbon->SeeInvis = base_value;
+			base_value = std::min({ base_value, MAX_INVISIBILTY_LEVEL });
+			if (newbon->SeeInvis < base_value) {
+				newbon->SeeInvis = base_value;
+			}
 			break;
 		case SE_BaseMovementSpeed:
 			newbon->BaseMovementSpeed += base_value;
@@ -1074,11 +1082,11 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 		case SE_WeaponProc:
 		case SE_AddMeleeProc:
 			for (int i = 0; i < MAX_AA_PROCS; i += 4) {
-				if (!newbon->SpellProc[i]) {
-					newbon->SpellProc[i] = rank.id;   //aa rank id
-					newbon->SpellProc[i + 1] = base_value; //proc spell id
-					newbon->SpellProc[i + 2] = limit_value; //proc rate modifer
-					newbon->SpellProc[i + 3] = 0;	  //Lock out Timer
+				if (!newbon->SpellProc[i + SBIndex::COMBAT_PROC_ORIGIN_ID]) {
+					newbon->SpellProc[i + SBIndex::COMBAT_PROC_ORIGIN_ID] = rank.id;   //aa rank id
+					newbon->SpellProc[i + SBIndex::COMBAT_PROC_SPELL_ID] = base_value; //proc spell id
+					newbon->SpellProc[i + SBIndex::COMBAT_PROC_RATE_MOD] = limit_value; //proc rate modifer
+					newbon->SpellProc[i + SBIndex::COMBAT_PROC_REUSE_TIMER] = 0;	  //Lock out Timer
 					break;
 				}
 			}
@@ -1086,11 +1094,11 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 
 		case SE_RangedProc:
 			for (int i = 0; i < MAX_AA_PROCS; i += 4) {
-				if (!newbon->RangedProc[i]) {
-					newbon->RangedProc[i] = rank.id;   //aa rank id
-					newbon->RangedProc[i + 1] = base_value; //proc spell id
-					newbon->RangedProc[i + 2] = limit_value; //proc rate modifer
-					newbon->RangedProc[i + 3] = 0;	   //Lock out Timer
+				if (!newbon->RangedProc[i + SBIndex::COMBAT_PROC_ORIGIN_ID]) {
+					newbon->RangedProc[i + SBIndex::COMBAT_PROC_ORIGIN_ID] = rank.id;   //aa rank id
+					newbon->RangedProc[i + SBIndex::COMBAT_PROC_SPELL_ID] = base_value; //proc spell id
+					newbon->RangedProc[i + SBIndex::COMBAT_PROC_RATE_MOD] = limit_value; //proc rate modifer
+					newbon->RangedProc[i + SBIndex::COMBAT_PROC_REUSE_TIMER] = 0;	   //Lock out Timer
 					break;
 				}
 			}
@@ -1098,11 +1106,11 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 
 		case SE_DefensiveProc:
 			for (int i = 0; i < MAX_AA_PROCS; i += 4) {
-				if (!newbon->DefensiveProc[i]) {
-					newbon->DefensiveProc[i] = rank.id;   //aa rank id
-					newbon->DefensiveProc[i + 1] = base_value; //proc spell id
-					newbon->DefensiveProc[i + 2] = limit_value; //proc rate modifer
-					newbon->DefensiveProc[i + 3] = 0;	  //Lock out Timer
+				if (!newbon->DefensiveProc[i + SBIndex::COMBAT_PROC_ORIGIN_ID]) {
+					newbon->DefensiveProc[i + SBIndex::COMBAT_PROC_ORIGIN_ID] = rank.id;   //aa rank id
+					newbon->DefensiveProc[i + SBIndex::COMBAT_PROC_SPELL_ID] = base_value; //proc spell id
+					newbon->DefensiveProc[i + SBIndex::COMBAT_PROC_RATE_MOD] = limit_value; //proc rate modifer
+					newbon->DefensiveProc[i + SBIndex::COMBAT_PROC_REUSE_TIMER] = 0;	  //Lock out Timer
 					break;
 				}
 			}
@@ -1118,23 +1126,23 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 			newbon->Proc_Timer_Modifier = true;
 
 			for (int i = 0; i < MAX_AA_PROCS; i += 4) {
-				if (newbon->SpellProc[i] == rank.id) {
-					if (!newbon->SpellProc[i + 3]) {
-						newbon->SpellProc[i + 3] = limit_value;//Lock out Timer
+				if (newbon->SpellProc[i + SBIndex::COMBAT_PROC_ORIGIN_ID] == rank.id) {
+					if (!newbon->SpellProc[i + SBIndex::COMBAT_PROC_REUSE_TIMER]) {
+						newbon->SpellProc[i + SBIndex::COMBAT_PROC_REUSE_TIMER] = limit_value;//Lock out Timer
 						break;
 					}
 				}
 
-				if (newbon->RangedProc[i] == rank.id) {
-					if (!newbon->RangedProc[i + 3]) {
-						newbon->RangedProc[i + 3] = limit_value;//Lock out Timer
+				if (newbon->RangedProc[i + SBIndex::COMBAT_PROC_ORIGIN_ID] == rank.id) {
+					if (!newbon->RangedProc[i + SBIndex::COMBAT_PROC_REUSE_TIMER]) {
+						newbon->RangedProc[i + SBIndex::COMBAT_PROC_REUSE_TIMER] = limit_value;//Lock out Timer
 						break;
 					}
 				}
 
-				if (newbon->DefensiveProc[i] == rank.id) {
-					if (!newbon->DefensiveProc[i + 3]) {
-						newbon->DefensiveProc[i + 3] = limit_value;//Lock out Timer
+				if (newbon->DefensiveProc[i + SBIndex::COMBAT_PROC_ORIGIN_ID] == rank.id) {
+					if (!newbon->DefensiveProc[i + SBIndex::COMBAT_PROC_REUSE_TIMER]) {
+						newbon->DefensiveProc[i + SBIndex::COMBAT_PROC_REUSE_TIMER] = limit_value;//Lock out Timer
 						break;
 					}
 				}
@@ -1207,11 +1215,18 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 		}
 
 		case SE_SkillAttackProc: {
-			// You can only have one of these per client. [AA Dragon Punch]
-			newbon->SkillAttackProc[SBIndex::SKILLPROC_CHANCE]   = base_value; // Chance base 1000 = 100% proc rate
-			newbon->SkillAttackProc[SBIndex::SKILLPROC_SKILL]    = limit_value; // Skill to Proc Off
-			newbon->SkillAttackProc[SBIndex::SKILLPROC_SPELL_ID] = rank.spell; // spell to proc
-			break;
+			for (int i = 0; i < MAX_CAST_ON_SKILL_USE; i += 3) {
+				if (!newbon->SkillAttackProc[i + SBIndex::SKILLATK_PROC_SPELL_ID]) { // spell id
+					newbon->SkillAttackProc[i + SBIndex::SKILLATK_PROC_SPELL_ID] = rank.spell; // spell to proc
+					newbon->SkillAttackProc[i + SBIndex::SKILLATK_PROC_CHANCE] = base_value; // Chance base 1000 = 100% proc rate
+					newbon->SkillAttackProc[i + SBIndex::SKILLATK_PROC_SKILL] = limit_value; // Skill to Proc Offr
+					
+					if (limit_value < EQ::skills::HIGHEST_SKILL) {
+						newbon->HasSkillAttackProc[limit_value] = true; //check first before looking for any effects.
+					}
+					break;
+				}
+			}
 		}
 
 		case SE_DamageModifier: {
@@ -1349,7 +1364,7 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 			// base1 = level, base2 = ??? (Set to 200 in AA data, possible proc rate mod?)
 			if (newbon->FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_MAX] < base_value) {
 				newbon->FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_MAX]          = base_value;
-				newbon->FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_CHANCE_BONUS] = limit_value;
+				newbon->FinishingBlowLvl[SBIndex::FINISHING_BLOW_LEVEL_HP_RATIO] = limit_value;
 			}
 			break;
 		}
@@ -1453,20 +1468,28 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 			break;
 		}
 
+		case SE_Illusion:
+			newbon->Illusion = true;
+			break;
+
 		case SE_IllusionPersistence:
-			newbon->IllusionPersistence = true;
+			newbon->IllusionPersistence = base_value;
 			break;
 
 		case SE_LimitToSkill: {
+
 			// Bad data or unsupported new skill
-			if (limit_value > EQ::skills::HIGHEST_SKILL)
+			if (base_value > EQ::skills::HIGHEST_SKILL) {
 				break;
-			if (base_value <= EQ::skills::HIGHEST_SKILL)
+			}
+			if (base_value <= EQ::skills::HIGHEST_SKILL) {
 				newbon->LimitToSkill[base_value] = true;
+				newbon->LimitToSkill[EQ::skills::HIGHEST_SKILL + 2] = true; //Used as a general exists check
+			}
 			break;
 		}
 
-		case SE_SkillProc: {
+		case SE_SkillProcAttempt: {
 			for (int e = 0; e < MAX_SKILL_PROCS; e++) {
 				if (newbon->SkillProc[e] && newbon->SkillProc[e] == rank.id)
 					break; // Do not use the same aa id more than once.
@@ -1560,8 +1583,10 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 			break;
 
 		case SE_FeignedMinion:
-			if (newbon->FeignedMinionChance < base_value)
+			if (newbon->FeignedMinionChance < base_value) {
 				newbon->FeignedMinionChance = base_value;
+			}
+			newbon->PetCommands[PET_FEIGN] = true;
 			break;
 
 		case SE_AdditionalAura:
@@ -1761,6 +1786,22 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 			newbon->Amplification += base_value;
 			break;
 
+		case SE_MitigateSpellDamage:
+		{
+			newbon->MitigateSpellRune[SBIndex::MITIGATION_RUNE_PERCENT] += base_value;
+			break;
+		}
+
+		case SE_MitigateDotDamage:
+		{
+			newbon->MitigateDotRune[SBIndex::MITIGATION_RUNE_PERCENT] += base_value;
+			break;
+		}
+
+		case SE_TrapCircumvention:
+			newbon->TrapCircumvention += base_value;
+			break;
+
 		// to do
 		case SE_PetDiscipline:
 			break;
@@ -1772,9 +1813,6 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
 			break;
 		case SE_NimbleEvasion:
 			break;
-		case SE_TrapCircumvention:
-			break;
-
 
 		// not handled here
 		case SE_HastenedAASkill:
@@ -1874,7 +1912,7 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
 					}
 				}
 				else {
-					new_bonus->FocusEffects[focus] = static_cast<uint8>(spells[spell_id].effect_id[i]);
+					new_bonus->FocusEffects[focus] = spells[spell_id].effect_id[i];
 				}
 				continue;
 			}
@@ -3019,6 +3057,10 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
 
 			case SE_MitigateSpellDamage:
 			{
+				if (WornType) {
+					new_bonus->MitigateSpellRune[SBIndex::MITIGATION_RUNE_PERCENT] += effect_value;
+				}
+
 				if (new_bonus->MitigateSpellRune[SBIndex::MITIGATION_RUNE_PERCENT] < effect_value){
 					new_bonus->MitigateSpellRune[SBIndex::MITIGATION_RUNE_PERCENT]                = effect_value;
 					new_bonus->MitigateSpellRune[SBIndex::MITIGATION_RUNE_BUFFSLOT]               = buffslot;
@@ -3030,6 +3072,10 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
 
 			case SE_MitigateDotDamage:
 			{
+				if (WornType) {
+					new_bonus->MitigateDotRune[SBIndex::MITIGATION_RUNE_PERCENT] += effect_value;
+				}
+
 				if (new_bonus->MitigateDotRune[SBIndex::MITIGATION_RUNE_PERCENT] < effect_value){
 					new_bonus->MitigateDotRune[SBIndex::MITIGATION_RUNE_PERCENT]                = effect_value;
 					new_bonus->MitigateDotRune[SBIndex::MITIGATION_RUNE_BUFFSLOT]               = buffslot;
@@ -3482,10 +3528,9 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
 
 			case SE_FinishingBlowLvl:
 			{
-				//base1 = level, base2 = ??? (Set to 200 in AA data, possible proc rate mod?)
 				if (new_bonus->FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_MAX] < effect_value){
-					new_bonus->FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_MAX]          = effect_value;
-					new_bonus->FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_CHANCE_BONUS] = limit_value;
+					new_bonus->FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_MAX]    = effect_value;
+					new_bonus->FinishingBlowLvl[SBIndex::FINISHING_BLOW_LEVEL_HP_RATIO] = limit_value;
 				}
 				break;
 			}
@@ -3508,29 +3553,36 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
 				break;
 			}
 
-			case SE_IllusionPersistence:
-				new_bonus->IllusionPersistence = true;
+			case SE_Illusion:
+				new_bonus->Illusion = spell_id;
 				break;
 
-			case SE_LimitToSkill:{
+			case SE_IllusionPersistence:
+				new_bonus->IllusionPersistence = effect_value;
+				break;
+
+			case SE_LimitToSkill: {
 				// Bad data or unsupported new skill
-				if (limit_value > EQ::skills::HIGHEST_SKILL)
+				if (effect_value > EQ::skills::HIGHEST_SKILL) {
 					break;
+				}
 				if (effect_value <= EQ::skills::HIGHEST_SKILL){
 					new_bonus->LimitToSkill[effect_value] = true;
-				}
+					new_bonus->LimitToSkill[EQ::skills::HIGHEST_SKILL + 2] = true; //Used as a general exists check
+					}
 				break;
 			}
 
-			case SE_SkillProc:{
+			case SE_SkillProcAttempt:{
 
 				for(int e = 0; e < MAX_SKILL_PROCS; e++)
 				{
-					if(new_bonus->SkillProc[e] && new_bonus->SkillProc[e] == spell_id)
+					if (new_bonus->SkillProc[e] && new_bonus->SkillProc[e] == spell_id) {
 						break; //Do not use the same spell id more than once.
-
+					}
 					else if(!new_bonus->SkillProc[e]){
 						new_bonus->SkillProc[e] = spell_id;
+						HasSkillProcs();//This returns it correctly as debug
 						break;
 					}
 				}
@@ -3550,6 +3602,21 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
 					}
 				}
 				break;
+			}
+
+			case SE_SkillAttackProc: {
+				for (int i = 0; i < MAX_CAST_ON_SKILL_USE; i += 3) {
+					if (!new_bonus->SkillAttackProc[i + SBIndex::SKILLATK_PROC_SPELL_ID]) { // spell id
+						new_bonus->SkillAttackProc[i + SBIndex::SKILLATK_PROC_SPELL_ID] = max_value; // spell to proc
+						new_bonus->SkillAttackProc[i + SBIndex::SKILLATK_PROC_CHANCE] = effect_value; // Chance base 1000 = 100% proc rate
+						new_bonus->SkillAttackProc[i + SBIndex::SKILLATK_PROC_SKILL] = limit_value; // Skill to Proc Offr
+						
+						if (limit_value < EQ::skills::HIGHEST_SKILL) {
+							new_bonus->HasSkillAttackProc[limit_value] = true; //check first before looking for any effects.
+						}
+						break;
+					}
+				}
 			}
 
 			case SE_PC_Pet_Rampage: {
@@ -3766,12 +3833,43 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
 				break;
 			}
 
+			case SE_Invisibility:
+			case SE_Invisibility2:
+				effect_value = std::min({ effect_value, MAX_INVISIBILTY_LEVEL });
+				if (new_bonus->invisibility < effect_value)
+					new_bonus->invisibility = effect_value;
+				break;
+
+			case SE_InvisVsUndead:
+			case SE_InvisVsUndead2:
+				if (new_bonus->invisibility_verse_undead < effect_value)
+					new_bonus->invisibility_verse_undead = effect_value;
+				break;
+
+			case SE_InvisVsAnimals:
+			case SE_ImprovedInvisAnimals:
+				effect_value = std::min({ effect_value, MAX_INVISIBILTY_LEVEL });
+				if (new_bonus->invisibility_verse_animal < effect_value)
+					new_bonus->invisibility_verse_animal = effect_value;
+				break;
+
+			case SE_SeeInvis:
+				effect_value = std::min({ effect_value, MAX_INVISIBILTY_LEVEL });
+				if (new_bonus->SeeInvis < effect_value) {
+					new_bonus->SeeInvis = effect_value;
+				}
+				break;
+
 			case SE_ZoneSuspendMinion:
 				new_bonus->ZoneSuspendMinion = effect_value;
 				break;
 
 			case SE_CompleteHeal:
 				new_bonus->CompleteHealBuffBlocker = true;
+				break;
+
+			case SE_TrapCircumvention:
+				new_bonus->TrapCircumvention += effect_value;
 				break;
 
 			//Special custom cases for loading effects on to NPC from 'npc_spels_effects' table
@@ -4088,9 +4186,9 @@ uint8 Mob::IsFocusEffect(uint16 spell_id,int effect_index, bool AA,uint32 aa_eff
 		case SE_Fc_ResistIncoming:
 			focusFcResistIncoming;
 		case SE_Fc_Amplify_Mod:
-			focusFcResistIncoming;
+			focusFcAmplifyMod;
 		case SE_Fc_Amplify_Amt:
-			focusFcResistIncoming;
+			focusFcAmplifyAmt;
 		case SE_SpellHateMod:
 			return focusSpellHateMod;
 		case SE_ReduceReuseTimer:
@@ -5374,9 +5472,9 @@ void Mob::NegateSpellEffectBonuses(uint16 spell_id)
 					if (negate_spellbonus) { spellbonuses.FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_MAX] = effect_value; }
 					if (negate_aabonus) { aabonuses.FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_MAX] = effect_value; }
 					if (negate_itembonus) { itembonuses.FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_MAX] = effect_value; }
-					if (negate_spellbonus) { spellbonuses.FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_CHANCE_BONUS] = effect_value; }
-					if (negate_aabonus) { aabonuses.FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_CHANCE_BONUS] = effect_value; }
-					if (negate_itembonus) { itembonuses.FinishingBlowLvl[SBIndex::FINISHING_EFFECT_LEVEL_CHANCE_BONUS] = effect_value; }
+					if (negate_spellbonus) { spellbonuses.FinishingBlowLvl[SBIndex::FINISHING_BLOW_LEVEL_HP_RATIO] = effect_value; }
+					if (negate_aabonus) { aabonuses.FinishingBlowLvl[SBIndex::FINISHING_BLOW_LEVEL_HP_RATIO] = effect_value; }
+					if (negate_itembonus) { itembonuses.FinishingBlowLvl[SBIndex::FINISHING_BLOW_LEVEL_HP_RATIO] = effect_value; }
 					break;
 
 				case SE_Sanctuary:
@@ -5390,9 +5488,9 @@ void Mob::NegateSpellEffectBonuses(uint16 spell_id)
 					break;
 
 				case SE_IllusionPersistence:
-					if (negate_spellbonus) { spellbonuses.IllusionPersistence = false; }
-					if (negate_itembonus) { itembonuses.IllusionPersistence = false; }
-					if (negate_aabonus) { aabonuses.IllusionPersistence = false; }
+					if (negate_spellbonus) { spellbonuses.IllusionPersistence = effect_value; }
+					if (negate_itembonus) { itembonuses.IllusionPersistence = effect_value; }
+					if (negate_aabonus) { aabonuses.IllusionPersistence = effect_value; }
 					break;
 
 				case SE_Attack_Accuracy_Max_Percent:
@@ -5503,7 +5601,7 @@ void Mob::NegateSpellEffectBonuses(uint16 spell_id)
 					}
 				}
 
-				case SE_SkillProc: {
+				case SE_SkillProcAttempt: {
 					for (int e = 0; e < MAX_SKILL_PROCS; e++)
 					{
 						if (negate_spellbonus) { spellbonuses.SkillProc[e] = effect_value; }

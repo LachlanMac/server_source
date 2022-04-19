@@ -2196,58 +2196,26 @@ void ClientTaskState::RemoveTask(Client *client, int sequence_number, TaskType t
 
 void ClientTaskState::RemoveTaskByTaskID(Client *client, uint32 task_id)
 {
-	auto task_type    = task_manager->GetTaskType(task_id);
-	int  character_id = client->CharacterID();
-
-	CharacterActivitiesRepository::DeleteWhere(
-		database,
-		fmt::format("charid = {} AND taskid = {}", character_id, task_id)
-	);
-
-	CharacterTasksRepository::DeleteWhere(
-		database,
-		fmt::format("charid = {} AND taskid = {} AND type = {}", character_id, task_id, (int) task_type)
-	);
-
-	switch (task_type) {
+	switch (task_manager->GetTaskType(task_id)) {
 		case TaskType::Task: {
 			if (m_active_task.task_id == task_id) {
-				auto              outapp = new EQApplicationPacket(OP_CancelTask, sizeof(CancelTask_Struct));
-				CancelTask_Struct *cts   = (CancelTask_Struct *) outapp->pBuffer;
-				cts->SequenceNumber = TASKSLOTTASK;
-				cts->type           = static_cast<uint32>(task_type);
 				LogTasks("[UPDATE] RemoveTaskByTaskID found Task [{}]", task_id);
-				client->QueuePacket(outapp);
-				safe_delete(outapp);
-				m_active_task.task_id = TASKSLOTEMPTY;
+				CancelTask(client, TASKSLOTTASK, TaskType::Task, true);
 			}
 			break;
 		}
 		case TaskType::Shared: {
 			if (m_active_shared_task.task_id == task_id) {
-				auto              outapp = new EQApplicationPacket(OP_CancelTask, sizeof(CancelTask_Struct));
-				CancelTask_Struct *cts   = (CancelTask_Struct *) outapp->pBuffer;
-				cts->SequenceNumber      = TASKSLOTSHAREDTASK;
-				cts->type                = static_cast<uint32>(task_type);
-				LogTasks("[UPDATE] RemoveTaskByTaskID found Task [{}]", task_id);
-				client->QueuePacket(outapp);
-				safe_delete(outapp);
-				m_active_shared_task.task_id = TASKSLOTEMPTY;
+				LogTasks("[UPDATE] RemoveTaskByTaskID found Shared Task [{}]", task_id);
+				CancelTask(client, TASKSLOTSHAREDTASK, TaskType::Shared, true);
 			}
 			break;
 		}
 		case TaskType::Quest: {
 			for (int active_quest = 0; active_quest < MAXACTIVEQUESTS; active_quest++) {
-				if (m_active_quests[active_quest].task_id == task_id) {
-					auto              outapp = new EQApplicationPacket(OP_CancelTask, sizeof(CancelTask_Struct));
-					CancelTask_Struct *cts   = (CancelTask_Struct *) outapp->pBuffer;
-					cts->SequenceNumber      = active_quest;
-					cts->type                = static_cast<uint32>(task_type);
+				if (m_active_quests[active_quest].task_id == task_id) {					
 					LogTasks("[UPDATE] RemoveTaskByTaskID found Quest [{}] at index [{}]", task_id, active_quest);
-					m_active_quests[active_quest].task_id = TASKSLOTEMPTY;
-					m_active_task_count--;
-					client->QueuePacket(outapp);
-					safe_delete(outapp);
+					CancelTask(client, active_quest, TaskType::Quest, true);
 				}
 			}
 		}
@@ -2471,11 +2439,11 @@ void ClientTaskState::AcceptNewTask(
 	client->MessageString(Chat::White, YOU_ASSIGNED_TASK, task->title.c_str());
 
 	task_manager->SaveClientState(client, this);
-	std::string buf = std::to_string(task_id);
+	std::string export_string = std::to_string(task_id);
 
 	NPC *npc = entity_list.GetID(npc_type_id)->CastToNPC();
 	if (npc) {
-		parse->EventNPC(EVENT_TASK_ACCEPTED, npc, client, buf.c_str(), 0);
+		parse->EventNPC(EVENT_TASK_ACCEPTED, npc, client, export_string, 0);
 	}
 }
 

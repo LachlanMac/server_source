@@ -195,10 +195,11 @@ bool NPC::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes, bool bInnates
 					}
 
 					case SpellType_InCombatBuff: {
-						if(bInnates || zone->random.Roll(50))
-						{
-							AIDoSpellCast(i, tar, mana_cost);
-							return true;
+						if(bInnates || zone->random.Roll(50)) {
+							if (tar->CanBuffStack(AIspells[i].spellid, GetLevel(), true) >= 0) {
+								AIDoSpellCast(i, tar, mana_cost);
+								return true;
+							}
 						}
 						break;
 					}
@@ -838,20 +839,21 @@ void Client::AI_Process()
 	else
 	{
 		if(AI_feign_remember_timer->Check()) {
-			std::set<uint32>::iterator RememberedCharID;
-			RememberedCharID = feign_memory_list.begin();
-			while (RememberedCharID != feign_memory_list.end()) {
-				Client* remember_client = entity_list.GetClientByCharID(*RememberedCharID);
-				if (remember_client == nullptr) {
+			std::set<uint32>::iterator remembered_feigned_mobid;
+			remembered_feigned_mobid = feign_memory_list.begin();
+			while (remembered_feigned_mobid != feign_memory_list.end()) {
+				
+				Mob* remembered_mob = entity_list.GetMob(*remembered_feigned_mobid);
+				if (remembered_mob == nullptr || remembered_mob->IsCorpse()) {
 					//they are gone now...
-					RememberedCharID = feign_memory_list.erase(RememberedCharID);
-				} else if (!remember_client->GetFeigned()) {
-					AddToHateList(remember_client->CastToMob(),1);
-					RememberedCharID = feign_memory_list.erase(RememberedCharID);
+					remembered_feigned_mobid = feign_memory_list.erase(remembered_feigned_mobid);
+				} else if (!remembered_mob->GetFeigned()) {
+					AddToHateList(remembered_mob,1);
+					remembered_feigned_mobid = feign_memory_list.erase(remembered_feigned_mobid);
 					break;
 				} else {
 					//they are still feigned, carry on...
-					++RememberedCharID;
+					++remembered_feigned_mobid;
 				}
 			}
 		}
@@ -997,6 +999,14 @@ void Mob::AI_Process() {
 				}
 
 				if (door->IsDoorOpen()) {
+					continue;
+				}
+
+				if (door->GetTriggerDoorID() > 0) {
+					continue;
+				}
+
+				if (door->GetDoorParam() > 0) {
 					continue;
 				}
 
@@ -1340,7 +1350,7 @@ void Mob::AI_Process() {
 				}
 				// mob/npc waits until call for help complete, others can move
 				else if (AI_movement_timer->Check() && target &&
-						(GetOwnerID() || IsBot() ||
+						(GetOwnerID() || IsBot() || IsTempPet() ||
 						CastToNPC()->GetCombatEvent())) {
 					if (!IsRooted()) {
 						LogAI("Pursuing [{}] while engaged", target->GetName());
@@ -1365,22 +1375,22 @@ void Mob::AI_Process() {
 			// 6/14/06
 			// Improved Feign Death Memory
 			// check to see if any of our previous feigned targets have gotten up.
-			std::set<uint32>::iterator RememberedCharID;
-			RememberedCharID = feign_memory_list.begin();
-			while (RememberedCharID != feign_memory_list.end()) {
-				Client *remember_client = entity_list.GetClientByCharID(*RememberedCharID);
-				if (remember_client == nullptr) {
+			std::set<uint32>::iterator remembered_feigned_mobid;
+			remembered_feigned_mobid = feign_memory_list.begin();
+			while (remembered_feigned_mobid != feign_memory_list.end()) {
+				Mob *remembered_mob = entity_list.GetMob(*remembered_feigned_mobid);
+				if (remembered_mob == nullptr || remembered_mob->IsCorpse()) {
 					//they are gone now...
-					RememberedCharID = feign_memory_list.erase(RememberedCharID);
+					remembered_feigned_mobid = feign_memory_list.erase(remembered_feigned_mobid);
 				}
-				else if (!remember_client->GetFeigned()) {
-					AddToHateList(remember_client->CastToMob(), 1);
-					RememberedCharID = feign_memory_list.erase(RememberedCharID);
+				else if (!remembered_mob->GetFeigned()) {
+					AddToHateList(remembered_mob, 1);
+					remembered_feigned_mobid = feign_memory_list.erase(remembered_feigned_mobid);
 					break;
 				}
 				else {
 					//they are still feigned, carry on...
-					++RememberedCharID;
+					++remembered_feigned_mobid;
 				}
 			}
 		}
@@ -1477,6 +1487,10 @@ void Mob::AI_Process() {
 						}
 						break;
 					}
+					case SPO_FeignDeath: {
+						SetAppearance(eaDead, false);
+						break;
+					}
 				}
 				if (IsPetRegroup()) {
 					return;
@@ -1547,6 +1561,11 @@ void Mob::AI_Process() {
 				}
 			}
 		}
+	}
+
+	if (forget_timer.Check()) {
+		forget_timer.Disable();
+		entity_list.ClearZoneFeignAggro(this);
 	}
 
 	//Do Ranged attack here
@@ -1763,8 +1782,8 @@ void NPC::AI_DoMovement() {
 					}
 
 					//kick off event_waypoint arrive
-					std::string buf = fmt::format("{}", cur_wp);
-					parse->EventNPC(EVENT_WAYPOINT_ARRIVE, CastToNPC(), nullptr, buf.c_str(), 0);
+					std::string export_string = fmt::format("{}", cur_wp);
+					parse->EventNPC(EVENT_WAYPOINT_ARRIVE, CastToNPC(), nullptr, export_string, 0);
 					// No need to move as we are there.  Next loop will
 					// take care of normal grids, even at pause 0.
 					// We do need to call and setup a wp if we're cur_wp=-2
@@ -1881,8 +1900,8 @@ void NPC::AI_SetupNextWaypoint() {
 
 		if (!DistractedFromGrid) {
 			//kick off event_waypoint depart
-			std::string buf = fmt::format("{}", cur_wp);
-			parse->EventNPC(EVENT_WAYPOINT_DEPART, CastToNPC(), nullptr, buf.c_str(), 0);
+			std::string export_string = fmt::format("{}", cur_wp);
+			parse->EventNPC(EVENT_WAYPOINT_DEPART, CastToNPC(), nullptr, export_string, 0);
 
 			//setup our next waypoint, if we are still on our normal grid
 			//remember that the quest event above could have done anything it wanted with our grid
@@ -2465,8 +2484,8 @@ void NPC::CheckSignal() {
 	if (!signal_q.empty()) {
 		int signal_id = signal_q.front();
 		signal_q.pop_front();
-		std::string buf = fmt::format("{}", signal_id);
-		parse->EventNPC(EVENT_SIGNAL, this, nullptr, buf.c_str(), 0);
+		std::string export_string = fmt::format("{}", signal_id);
+		parse->EventNPC(EVENT_SIGNAL, this, nullptr, export_string, 0);
 	}
 }
 
@@ -2743,9 +2762,8 @@ void NPC::ApplyAISpellEffects(StatBonuses* newbon)
 }
 
 // adds a spell to the list, taking into account priority and resorting list as needed.
-void NPC::AddSpellEffectToNPCList(uint16 iSpellEffectID, int32 base_value, int32 limit, int32 max_value)
+void NPC::AddSpellEffectToNPCList(uint16 iSpellEffectID, int32 base_value, int32 limit, int32 max_value, bool apply_bonus)
 {
-
 	if(!iSpellEffectID)
 		return;
 
@@ -2757,6 +2775,40 @@ void NPC::AddSpellEffectToNPCList(uint16 iSpellEffectID, int32 base_value, int32
 	t.limit = limit;
 	t.max_value = max_value;
 	AIspellsEffects.push_back(t);
+
+	//we recalculate if applied from quest script.
+	if (apply_bonus) {
+		CalcBonuses();
+	}
+}
+
+void NPC::RemoveSpellEffectFromNPCList(uint16 iSpellEffectID, bool apply_bonus)
+{
+	auto iter = AIspellsEffects.begin();
+	while (iter != AIspellsEffects.end())
+	{
+		if ((*iter).spelleffectid == iSpellEffectID)
+		{
+			iter = AIspellsEffects.erase(iter);
+			continue;
+		}
+		++iter;
+	}
+
+	if (apply_bonus) {
+		CalcBonuses();
+	}
+}
+
+bool NPC::HasAISpellEffect(uint16 spell_effect_id)
+{
+	for (const auto& spell_effect : AIspellsEffects) {
+		if (spell_effect.spelleffectid == spell_effect_id) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool IsSpellEffectInList(DBnpcspellseffects_Struct* spelleffect_list, uint16 iSpellEffectID, int32 base_value, int32 limit, int32 max_value) {

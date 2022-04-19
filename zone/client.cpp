@@ -145,7 +145,6 @@ Client::Client(EQStreamInterface* ieqs)
   global_channel_timer(1000),
   fishing_timer(8000),
   endupkeep_timer(1000),
-  forget_timer(0),
   autosave_timer(RuleI(Character, AutosaveIntervalS) * 1000),
   client_scan_npc_aggro_timer(RuleI(Aggro, ClientAggroCheckIdleInterval)),
   client_zone_wide_full_position_update_timer(5 * 60 * 1000),
@@ -154,6 +153,7 @@ Client::Client(EQStreamInterface* ieqs)
   TaskPeriodic_Timer(RuleI(TaskSystem, PeriodicCheckTimer) * 1000),
   charm_update_timer(6000),
   rest_timer(1),
+  pick_lock_timer(1000),
   charm_class_attacks_timer(3000),
   charm_cast_timer(3500),
   qglobal_purge_timer(30000),
@@ -185,7 +185,6 @@ Client::Client(EQStreamInterface* ieqs)
 	character_id = 0;
 	conn_state = NoPacketsReceived;
 	client_data_loaded = false;
-	feigned = false;
 	berserk = false;
 	dead = false;
 	eqs = ieqs;
@@ -270,6 +269,8 @@ Client::Client(EQStreamInterface* ieqs)
 	if (RuleI(World, PVPMinLevel) > 0 && level >= RuleI(World, PVPMinLevel) && m_pp.pvp == 0) SetPVP(true, false);
 	dynamiczone_removal_timer.Disable();
 
+	heroforge_wearchange_timer.Disable();
+
 	//for good measure:
 	memset(&m_pp, 0, sizeof(m_pp));
 	memset(&m_epp, 0, sizeof(m_epp));
@@ -351,6 +352,9 @@ Client::Client(EQStreamInterface* ieqs)
 
 	temp_pvp = false;
 	is_client_moving = false;
+
+	environment_damage_modifier = 0;
+	invulnerable_environment_damage = false;
 
 	// rate limiter
 	m_list_task_timers_rate_limit.Start(1000);
@@ -1869,9 +1873,7 @@ void Client::CheckManaEndUpdate() {
 		mana_change->stamina = current_endurance;
 		mana_change->spell_id = casting_spell_id;
 		mana_change->keepcasting = 1;
-		mana_change->padding[0] = 0;
-		mana_change->padding[1] = 0;
-		mana_change->padding[2] = 0;
+		mana_change->slot = -1;
 		outapp->priority = 6;
 		QueuePacket(outapp);
 		safe_delete(outapp);
@@ -2076,7 +2078,13 @@ bool Client::ChangeFirstName(const char* in_firstname, const char* gmname)
 void Client::SetGM(bool toggle) {
 	m_pp.gm = toggle ? 1 : 0;
 	m_inv.SetGMInventory((bool)m_pp.gm);
-	Message(Chat::Red, "You are %s a GM.", m_pp.gm ? "now" : "no longer");
+	Message(
+		Chat::White,
+		fmt::format(
+			"You are {} flagged as a GM.",
+			m_pp.gm ? "now" : "no longer"
+		).c_str()
+	);
 	SendAppearancePacket(AT_GM, m_pp.gm);
 	Save();
 	UpdateWho();
@@ -2415,9 +2423,11 @@ bool Client::CheckIncreaseSkill(EQ::skills::SkillType skillid, Mob *against_who,
 		return false;
 	if (IsAIControlled()) // no skillups while chamred =p
 		return false;
+	if (against_who != nullptr && against_who->IsCorpse()) // no skillups on corpses
+		return false;
 	if (skillid > EQ::skills::HIGHEST_SKILL)
 		return false;
-	int skillval = GetRawSkill(skillid);
+	int skillval = GetRawSkill(skillid);	
 	int maxskill = GetMaxSkillAfterSpecializationRules(skillid, MaxSkill(skillid));
 	std::string export_string = fmt::format(
 		"{} {}",
@@ -2442,23 +2452,26 @@ bool Client::CheckIncreaseSkill(EQ::skills::SkillType skillid, Mob *against_who,
 	// Make sure we're not already at skill cap
 	if (skillval < maxskill)
 	{
-		// the higher your current skill level, the harder it is
-		int32 Chance = 10 + chancemodi + ((252 - skillval) / 20);
-
-		Chance = (Chance * RuleI(Character, SkillUpModifier) / 100);
-
-		Chance = mod_increase_skill_chance(Chance, against_who);
-
-		if(Chance < 1)
-			Chance = 1; // Make it always possible
+		double Chance = 0;		
+		if (RuleI(Character, SkillUpMaximumChancePercentage) + chancemodi - RuleI(Character, SkillUpMinimumChancePercentage) <= RuleI(Character, SkillUpMinimumChancePercentage)) {
+			Chance = RuleI(Character, SkillUpMinimumChancePercentage);
+		}
+		else {
+			// f(x) = (max - min + modification) * .99^skillval + min
+			// This results in a exponential decay where as you skill up, you lose a slight chance to skill up, ranging from your modified maximum to approaching your minimum
+			// This result is increased by the existing SkillUpModifier rule
+			double working_chance = (((RuleI(Character, SkillUpMaximumChancePercentage) - RuleI(Character, SkillUpMinimumChancePercentage) + chancemodi) * (pow(0.99, skillval))) + RuleI(Character, SkillUpMinimumChancePercentage));
+			Chance = (working_chance * RuleI(Character, SkillUpModifier) / 100);
+			Chance = mod_increase_skill_chance(Chance, against_who);
+		}
 
 		if(zone->random.Real(0, 99) < Chance)
 		{
 			SetSkill(skillid, GetRawSkill(skillid) + 1);
-			LogSkills("Skill [{}] at value [{}] successfully gain with [{}]% chance (mod [{}])", skillid, skillval, Chance, chancemodi);
+			LogSkills("Skill [{}] at value [{}] successfully gain with [{}] chance (mod [{}])", skillid, skillval, Chance, chancemodi);
 			return true;
 		} else {
-			LogSkills("Skill [{}] at value [{}] failed to gain with [{}]% chance (mod [{}])", skillid, skillval, Chance, chancemodi);
+			LogSkills("Skill [{}] at value [{}] failed to gain with [{}] chance (mod [{}])", skillid, skillval, Chance, chancemodi);
 		}
 	} else {
 		LogSkills("Skill [{}] at value [{}] cannot increase due to maxmum [{}]", skillid, skillval, maxskill);
@@ -2613,10 +2626,11 @@ void Client::SetPVP(bool toggle, bool message) {
 	m_pp.pvp = toggle ? 1 : 0;
 
 	if (message) {
-		if(GetPVP())
-			this->MessageString(Chat::Shout,PVP_ON);
-		else
-			Message(Chat::Red, "You no longer follow the ways of discord.");
+		if(GetPVP()) {
+			MessageString(Chat::Shout, PVP_ON);
+		} else {
+			Message(Chat::Shout, "You now follow the ways of Order.");
+		}
 	}
 
 	SendAppearancePacket(AT_PVP, GetPVP());
@@ -2653,37 +2667,21 @@ bool Client::CheckAccess(int16 iDBLevel, int16 iDefaultLevel) {
 		return false;
 }
 
-void Client::MemorizeSpell(uint32 slot,uint32 spellid,uint32 scribing){
+void Client::MemorizeSpell(uint32 slot,uint32 spellid,uint32 scribing, uint32 reduction){
 	if (slot < 0 || slot >= EQ::spells::DynamicLookup(ClientVersion(), GetGM())->SpellbookSize)
 		return;
 	if ((spellid < 3 || spellid > EQ::spells::DynamicLookup(ClientVersion(), GetGM())->SpellIdMax) && spellid != 0xFFFFFFFF)
 		return;
-
 	auto outapp = new EQApplicationPacket(OP_MemorizeSpell, sizeof(MemorizeSpell_Struct));
 	MemorizeSpell_Struct* mss=(MemorizeSpell_Struct*)outapp->pBuffer;
 	mss->scribing=scribing;
 	mss->slot=slot;
 	mss->spell_id=spellid;
+	mss->reduction = reduction;
 	outapp->priority = 5;
 	QueuePacket(outapp);
 	safe_delete(outapp);
 }
-
-void Client::SetFeigned(bool in_feigned) {
-	if (in_feigned)
-	{
-		if(RuleB(Character, FeignKillsPet))
-		{
-			SetPet(0);
-		}
-		SetHorseId(0);
-		entity_list.ClearFeignAggro(this);
-		forget_timer.Start(FeignMemoryDuration);
-	} else {
-		forget_timer.Disable();
-	}
-	feigned=in_feigned;
- }
 
 void Client::LogMerchant(Client* player, Mob* merchant, uint32 quantity, uint32 price, const EQ::ItemData* item, bool buying)
 {
@@ -3460,8 +3458,7 @@ uint8 Client::SlotConvert2(uint8 slot){
 void Client::Escape()
 {
 	entity_list.RemoveFromTargets(this, true);
-	SetInvisible(1);
-
+	SetInvisible(Invisibility::Invisible);
 	MessageString(Chat::Skills, ESCAPE);
 }
 
@@ -3471,7 +3468,7 @@ float Client::CalcPriceMod(Mob* other, bool reverse)
 	if (other)
 	{
 		int factionlvl = GetFactionLevel(CharacterID(), other->CastToNPC()->GetNPCTypeID(), GetFactionRace(), GetClass(), GetDeity(), other->CastToNPC()->GetPrimaryFaction(), other);
-		if (factionlvl >= FACTION_APPREHENSIVE) // Apprehensive or worse.
+		if (factionlvl >= FACTION_APPREHENSIVELY) // Apprehensive or worse.
 		{
 			if (GetCHA() > 103)
 			{
@@ -3486,7 +3483,7 @@ float Client::CalcPriceMod(Mob* other, bool reverse)
 					chaformula = 1*(RuleI(Merchant, PricePenaltyPct));
 			}
 		}
-		if (factionlvl <= FACTION_INDIFFERENT) // Indifferent or better.
+		if (factionlvl <= FACTION_INDIFFERENTLY) // Indifferent or better.
 		{
 			if (GetCHA() > 75)
 			{
@@ -5321,31 +5318,72 @@ uint32 Client::GetStartZone()
 
 void Client::ShowSkillsWindow()
 {
-	const char *WindowTitle = "Skills";
-	std::string WindowText;
-	std::map<EQ::skills::SkillType, std::string> Skills = EQ::skills::GetSkillTypeMap();
+	std::string popup_text;
+	std::map<EQ::skills::SkillType, std::string> skills_map = EQ::skills::GetSkillTypeMap();
 
-	if (ClientVersion() < EQ::versions::ClientVersion::RoF2)
-		Skills[EQ::skills::Skill1HPiercing] = "Piercing";
-
-	// print out all available skills
-	for (auto skills_iter : Skills) {
-		if (skills_iter.first == EQ::skills::Skill2HPiercing && ClientVersion() < EQ::versions::ClientVersion::RoF2)
-			continue;
-		if (!GetSkill(skills_iter.first) && !MaxSkill(skills_iter.first))
-			continue;
-
-		WindowText += skills_iter.second;
-		// line up the values
-		WindowText += "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		WindowText += itoa(this->GetSkill(skills_iter.first));
-		if (MaxSkill(skills_iter.first) > 0) {
-			WindowText += "/";
-			WindowText += itoa(this->GetMaxSkillAfterSpecializationRules(skills_iter.first, this->MaxSkill(skills_iter.first)));
-		}
-		WindowText += "<br>";
+	if (ClientVersion() < EQ::versions::ClientVersion::RoF2) {
+		skills_map[EQ::skills::Skill1HPiercing] = "Piercing";
 	}
-	this->SendPopupToClient(WindowTitle, WindowText.c_str());
+
+	// Table Start
+	popup_text += "<table>";
+
+	for (const auto& skill : skills_map) {
+		auto skill_id = skill.first;
+		auto skill_name = skill.second;
+		auto can_have_skill = CanHaveSkill(skill_id);
+		auto current_skill = GetSkill(skill_id);
+		auto max_skill = MaxSkill(skill_id);
+		auto skill_maxed = current_skill >= max_skill;
+		if (
+			skill_id == EQ::skills::Skill2HPiercing &&
+			ClientVersion() < EQ::versions::ClientVersion::RoF2
+		) {
+			continue;
+		}
+
+		if (
+			!can_have_skill ||
+			!current_skill ||
+			!max_skill
+		) {
+			continue;
+		}
+
+		// Row Start
+		popup_text += "<tr>";
+
+		// Skill Name
+		popup_text += fmt::format(
+			"<td>{}</td>",
+			skill_name
+		);
+
+		// Current Skill Level out of Max Skill Level or a Check Mark for Maxed
+		popup_text += fmt::format(
+			"<td>{}</td>",
+			(
+				skill_maxed ?
+				"<c \"#00FF00\">✔</c>" :
+				fmt::format(
+					"{}/{}",
+					current_skill,
+					max_skill
+				)
+			)
+		);
+
+		// Row End
+		popup_text += "</tr>";
+	}
+	
+	// Table End
+	popup_text += "</table>";
+	
+	SendPopupToClient(
+		"Skills",
+		popup_text.c_str()
+	);
 }
 
 void Client::Signal(uint32 data)
@@ -6451,11 +6489,12 @@ void Client::Doppelganger(uint16 spell_id, Mob *target, const char *name_overrid
 		swarm_pet_npc->StartSwarmTimer(pet_duration * 1000);
 
 		swarm_pet_npc->GetSwarmInfo()->owner_id = GetID();
+		swarm_pet_npc->SetFollowID(GetID());
 
 		// Give the pets alittle more agro than the caster and then agro them on the target
 		target->AddToHateList(swarm_pet_npc, (target->GetHateAmount(this) + 100), (target->GetDamageAmount(this) + 100));
 		swarm_pet_npc->AddToHateList(target, 1000, 1000);
-		swarm_pet_npc->GetSwarmInfo()->target = target->GetID();
+		swarm_pet_npc->GetSwarmInfo()->target = 0;
 
 		//we allocated a new NPC type object, give the NPC ownership of that memory
 		if(npc_dup != nullptr)
@@ -6890,7 +6929,7 @@ void Client::SendStatsWindow(Client* client, bool use_window)
 	for (auto iter = item_faction_bonuses.begin(); iter != item_faction_bonuses.end(); ++iter) {
 		memset(&faction_buf, 0, sizeof(faction_buf));
 
-		if(!content_db.GetFactionName((int32)((*iter).first), faction_buf, sizeof(faction_buf)))
+		if(!content_db.GetFactionName((int)((*iter).first), faction_buf, sizeof(faction_buf)))
 			strcpy(faction_buf, "Not in DB");
 
 		if((*iter).second > 0) {
@@ -7026,23 +7065,16 @@ void Client::SendAltCurrencies() {
 		altc->opcode = ALT_CURRENCY_OP_POPULATE;
 		altc->count = count;
 
-		uint32 i = 0;
-		auto iter = zone->AlternateCurrencies.begin();
-		while(iter != zone->AlternateCurrencies.end()) {
-			const EQ::ItemData* item = database.GetItem((*iter).item_id);
-			altc->entries[i].currency_number = (*iter).id;
-			altc->entries[i].unknown00 = 1;
-			altc->entries[i].currency_number2 = (*iter).id;
-			altc->entries[i].item_id = (*iter).item_id;
-			if(item) {
-				altc->entries[i].item_icon = item->Icon;
-				altc->entries[i].stack_size = item->StackSize;
-			} else {
-				altc->entries[i].item_icon = 1000;
-				altc->entries[i].stack_size = 1000;
-			}
-			i++;
-			++iter;
+		uint32 currency_id = 0;
+		for (const auto& alternate_currency : zone->AlternateCurrencies) {
+			const EQ::ItemData* item = database.GetItem(alternate_currency.item_id);
+			altc->entries[currency_id].currency_number = alternate_currency.id;
+			altc->entries[currency_id].unknown00 = 1;
+			altc->entries[currency_id].currency_number2 = alternate_currency.id;
+			altc->entries[currency_id].item_id = alternate_currency.item_id;
+			altc->entries[currency_id].item_icon = item ? item->Icon : 1000;
+			altc->entries[currency_id].stack_size = item ? item->StackSize : 1000;
+			currency_id++;
 		}
 
 		FastQueuePacket(&outapp);
@@ -7097,10 +7129,8 @@ void Client::AddAlternateCurrencyValue(uint32 currency_id, int32 amount, int8 me
 
 void Client::SendAlternateCurrencyValues()
 {
-	auto iter = zone->AlternateCurrencies.begin();
-	while(iter != zone->AlternateCurrencies.end()) {
-		SendAlternateCurrencyValue((*iter).id, false);
-		++iter;
+	for (const auto& alternate_currency : zone->AlternateCurrencies) {
+		SendAlternateCurrencyValue(alternate_currency.id, false);
 	}
 }
 
@@ -7404,7 +7434,7 @@ void Client::ProcessXTargetAutoHaters()
 	std::queue<int> empty_slots;
 	for (int i = 0; i < GetMaxXTargets(); ++i) {
 		if (XTargets[i].Type != Auto)
-			continue;
+			continue;		
 
 		if (XTargets[i].ID != 0 && !GetXTargetAutoMgr()->contains_mob(XTargets[i].ID)) {
 			XTargets[i].ID = 0;
@@ -7443,6 +7473,7 @@ void Client::ProcessXTargetAutoHaters()
 				break;
 		}
 	}
+	
 	m_dirtyautohaters = false;
 	SendXTargetUpdates();
 }
@@ -7809,7 +7840,7 @@ FACTION_VALUE Client::GetReverseFactionCon(Mob* iOther) {
 		return GetSpecialFactionCon(iOther);
 
 	if (iOther->GetPrimaryFaction() == 0)
-		return FACTION_INDIFFERENT;
+		return FACTION_INDIFFERENTLY;
 
 	return GetFactionLevel(CharacterID(), 0, GetFactionRace(), GetClass(), GetDeity(), iOther->GetPrimaryFaction(), iOther);
 }
@@ -7832,25 +7863,25 @@ FACTION_VALUE Client::GetFactionLevel(uint32 char_id, uint32 npc_id, uint32 p_ra
 {
 	if (pFaction < 0)
 		return GetSpecialFactionCon(tnpc);
-	FACTION_VALUE fac = FACTION_INDIFFERENT;
+	FACTION_VALUE fac = FACTION_INDIFFERENTLY;
 	int32 tmpFactionValue;
 	FactionMods fmods;
 
 	// few optimizations
 	if (GetFeigned())
-		return FACTION_INDIFFERENT;
+		return FACTION_INDIFFERENTLY;
 	if(!zone->CanDoCombat())
-		return FACTION_INDIFFERENT;
+		return FACTION_INDIFFERENTLY;
 	if (invisible_undead && tnpc && !tnpc->SeeInvisibleUndead())
-		return FACTION_INDIFFERENT;
+		return FACTION_INDIFFERENTLY;
 	if (IsInvisible(tnpc))
-		return FACTION_INDIFFERENT;
+		return FACTION_INDIFFERENTLY;
 	if (tnpc && tnpc->GetOwnerID() != 0) // pets con amiably to owner and indiff to rest
 	{
 		if (char_id == tnpc->GetOwner()->CastToClient()->CharacterID())
-			return FACTION_AMIABLE;
+			return FACTION_AMIABLY;
 		else
-			return FACTION_INDIFFERENT;
+			return FACTION_INDIFFERENTLY;
 	}
 
 	//First get the NPC's Primary faction
@@ -7870,15 +7901,15 @@ FACTION_VALUE Client::GetFactionLevel(uint32 char_id, uint32 npc_id, uint32 p_ra
 	}
 	else
 	{
-		return(FACTION_INDIFFERENT);
+		return(FACTION_INDIFFERENTLY);
 	}
 
 	// merchant fix
-	if (tnpc && tnpc->IsNPC() && tnpc->CastToNPC()->MerchantType && (fac == FACTION_THREATENLY || fac == FACTION_SCOWLS))
-		fac = FACTION_DUBIOUS;
+	if (tnpc && tnpc->IsNPC() && tnpc->CastToNPC()->MerchantType && (fac == FACTION_THREATENINGLY || fac == FACTION_SCOWLS))
+		fac = FACTION_DUBIOUSLY;
 
 	if (tnpc != 0 && fac != FACTION_SCOWLS && tnpc->CastToNPC()->CheckAggro(this))
-		fac = FACTION_THREATENLY;
+		fac = FACTION_THREATENINGLY;
 
 	return fac;
 }
@@ -8654,7 +8685,7 @@ void Client::QuestReward(Mob* target, uint32 copper, uint32 silver, uint32 gold,
 
 	if (faction)
 	{
-		if (target && target->IsNPC())
+		if (target && target->IsNPC() && !target->IsCharmed())
 		{
 			int32 nfl_id = target->CastToNPC()->GetNPCFactionID();
 			SetFactionLevel(CharacterID(), nfl_id, GetBaseClass(), GetBaseRace(), GetDeity(), true);
@@ -8690,7 +8721,7 @@ void Client::QuestReward(Mob* target, const QuestReward_Struct &reward, bool fac
 
 	if (faction)
 	{
-		if (target && target->IsNPC())
+		if (target && target->IsNPC() && !target->IsCharmed())
 		{
 			int32 nfl_id = target->CastToNPC()->GetNPCFactionID();
 			SetFactionLevel(CharacterID(), nfl_id, GetBaseClass(), GetBaseRace(), GetDeity(), true);
@@ -9407,7 +9438,7 @@ void Client::CheckVirtualZoneLines()
 			LogZonePoints(
 				"Virtual Zone Box Sending player [{}] to [{}]",
 				GetCleanName(),
-				zone_store.GetZoneLongName(virtual_zone_point.target_zone_id)
+				ZoneLongName(virtual_zone_point.target_zone_id)
 			);
 		}
 	}
@@ -10828,4 +10859,47 @@ uint16 Client::LearnDisciplines(uint8 min_level, uint8 max_level)
 	}
 
 	return learned_disciplines;
+}
+
+uint16 Client::GetClassTrackingDistanceMultiplier(uint16 class_) {
+	switch (class_) {
+	case WARRIOR:
+		return RuleI(Character, WarriorTrackingDistanceMultiplier);
+	case CLERIC:
+		return RuleI(Character, ClericTrackingDistanceMultiplier);
+	case PALADIN:
+		return RuleI(Character, PaladinTrackingDistanceMultiplier);
+	case RANGER:
+		return RuleI(Character, RangerTrackingDistanceMultiplier);
+	case SHADOWKNIGHT:
+		return RuleI(Character, ShadowKnightTrackingDistanceMultiplier);
+	case DRUID:
+		return RuleI(Character, DruidTrackingDistanceMultiplier);
+	case MONK:
+		return RuleI(Character, MonkTrackingDistanceMultiplier);
+	case BARD:
+		return RuleI(Character, BardTrackingDistanceMultiplier);
+	case ROGUE:
+		return RuleI(Character, RogueTrackingDistanceMultiplier);
+	case SHAMAN:
+		return RuleI(Character, ShamanTrackingDistanceMultiplier);
+	case NECROMANCER:
+		return RuleI(Character, NecromancerTrackingDistanceMultiplier);
+	case WIZARD:
+		return RuleI(Character, WizardTrackingDistanceMultiplier);
+	case MAGICIAN:
+		return RuleI(Character, MagicianTrackingDistanceMultiplier);
+	case ENCHANTER:
+		return RuleI(Character, EnchanterTrackingDistanceMultiplier);
+	case BEASTLORD:
+		return RuleI(Character, BeastlordTrackingDistanceMultiplier);
+	case BERSERKER:
+		return RuleI(Character, BerserkerTrackingDistanceMultiplier);
+	default: 
+		return 0;
+	}
+}
+
+bool Client::CanThisClassTrack() {
+	return (GetClassTrackingDistanceMultiplier(GetClass()) > 0) ? true : false;
 }

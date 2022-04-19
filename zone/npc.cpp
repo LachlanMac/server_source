@@ -509,12 +509,8 @@ void NPC::SetTarget(Mob* mob) {
 	if(mob == GetTarget())		//dont bother if they are allready our target
 		return;
 
-	//This is not the default behavior for swarm pets, must be specified from quest functions or rules value.
-	if(GetSwarmInfo() && GetSwarmInfo()->target && GetTarget() && (GetTarget()->GetHP() > 0)) {
-		Mob *targ = entity_list.GetMob(GetSwarmInfo()->target);
-		if(targ != mob){
-			return;
-		}
+	if (GetPetTargetLockID()) {
+		TryDepopTargetLockedPets(mob);
 	}
 
 	if (mob) {
@@ -641,18 +637,21 @@ void NPC::ClearItemList() {
 		SendAppearancePacket(AT_Light, GetActiveLightType());
 }
 
-void NPC::QueryLoot(Client* to)
+void NPC::QueryLoot(Client* to, bool is_pet_query)
 {
-	if (itemlist.size() > 0) {
-		to->Message(
-			Chat::White,
-			fmt::format(
-				"Loot | Name: {} ID: {} Loottable ID: {}",
-				GetName(),
-				GetNPCTypeID(),
-				GetLoottableID()
-			).c_str()
-		);
+	if (!itemlist.empty()) {
+		if (!is_pet_query) {
+			to->Message(
+				Chat::White,
+				fmt::format(
+					"Loot | {} ({}) ID: {} Loottable ID: {}",
+					GetName(),
+					GetID(),
+					GetNPCTypeID(),
+					GetLoottableID()
+				).c_str()
+			);
+		}
 
 		int item_count = 0;
 		for (auto current_item : itemlist) {
@@ -674,35 +673,45 @@ void NPC::QueryLoot(Client* to)
 			to->Message(
 				Chat::White,
 				fmt::format(
-					"Item {} | Name: {} ID: {} Min Level: {} Max Level: {}",
+					"Item {} | {} ({}){}",
 					item_number,
 					linker.GenerateLink().c_str(),
 					current_item->item_id,
-					current_item->trivial_min_level,
-					current_item->trivial_max_level
+					(
+						current_item->charges > 1 ?
+						fmt::format(
+							" Amount: {}",
+							current_item->charges
+						) :
+						""
+					)
 				).c_str()
 			);
 			item_count++;
 		}
 	}
 
-	bool has_money = (
-		platinum > 0 ||
-		gold > 0 ||
-		silver > 0 ||
-		copper > 0
-	);
-	if (has_money) {
-		to->Message(
-			Chat::White,
-			fmt::format(
-				"Money | Platinum: {} Gold: {} Silver: {} Copper: {}",
-				platinum,
-				gold,
-				silver,
-				copper
-			).c_str()
+	if (!is_pet_query) {
+		bool has_money = (
+			platinum > 0 ||
+			gold > 0 ||
+			silver > 0 ||
+			copper > 0
 		);
+		if (has_money) {
+			to->Message(
+				Chat::White,
+				fmt::format(
+					"Money | {}",
+					ConvertMoneyToString(
+						platinum,
+						gold,
+						silver,
+						copper
+					)
+				).c_str()
+			);
+		}
 	}
 }
 
@@ -749,7 +758,7 @@ uint16 NPC::CountItem(uint32 item_id) {
 		}
 
 		if (loot_item->item_id == item_id) {
-			item_count += loot_item->charges;
+			item_count += loot_item->charges > 0 ? loot_item->charges : 1;
 		}
 	}
 	return item_count;
@@ -833,6 +842,10 @@ bool NPC::Process()
 	}
 
 	SpellProcess();
+
+	if (swarm_timer.Check()) {
+		DepopSwarmPets();
+	}
 
 	if (mob_close_scan_timer.Check()) {
 		entity_list.ScanCloseMobs(close_mobs, this, IsMoving());
@@ -2624,6 +2637,164 @@ void NPC::ModifyNPCStat(const char *identifier, const char *new_value)
 	}
 }
 
+float NPC::GetNPCStat(const char *identifier)
+{
+	std::string id = str_tolower(identifier);
+
+	if (id == "ac") {
+		return AC;
+	}
+	else if (id == "str") {
+		return STR;
+	}
+	else if (id == "sta") {
+		return STA;
+	}
+	else if (id == "agi") {
+		return AGI;
+	}
+	else if (id == "dex") {
+		return DEX;
+	}
+	else if (id == "wis") {
+		return WIS;
+	}
+	else if (id == "int" || id == "_int") {
+		return INT;
+	}
+	else if (id == "cha") {
+		return CHA;
+	}
+	else if (id == "max_hp") {
+		return base_hp;
+	}
+	else if (id == "max_mana") {
+		return npc_mana;
+	}
+	else if (id == "mr") {
+		return MR;
+	}
+	else if (id == "fr") {
+		return FR;
+	}
+	else if (id == "cr") {
+		return CR;
+	}
+	else if (id == "cor") {
+		return Corrup;
+	}
+	else if (id == "phr") {
+		return PhR;
+	}
+	else if (id == "pr") {
+		return PR;
+	}
+	else if (id == "dr") {
+		return DR;
+	}
+	else if (id == "phr") {
+		return PhR;
+	}
+	else if (id == "runspeed") {
+		return runspeed;
+	}
+
+	else if (id == "attack_speed") {
+		return attack_speed;
+	}
+	else if (id == "attack_delay") {
+		return attack_delay;
+	}
+	else if (id == "atk") {
+		return ATK;
+	}
+	else if (id == "accuracy") {
+		return accuracy_rating;
+	}
+	else if (id == "avoidance") {
+		return avoidance_rating;
+	}
+	else if (id == "trackable") {
+		return trackable;
+	}
+	else if (id == "min_hit") {
+		return min_dmg;
+	}
+	else if (id == "max_hit") {
+		return max_dmg;
+	}
+	else if (id == "attack_count") {
+		return attack_count;
+	}
+	else if (id == "see_invis") {
+		return see_invis;
+	}
+	else if (id == "see_invis_undead") {
+		return see_invis_undead;
+	}
+	else if (id == "see_hide") {
+		return see_hide;
+	}
+	else if (id == "see_improved_hide") {
+		return see_improved_hide;
+	}
+	else if (id == "hp_regen") {
+		return hp_regen;
+	}
+	else if (id == "mana_regen") {
+		return mana_regen;
+	}
+	else if (id == "level") {
+		return GetOrigLevel();
+	}
+	else if (id == "aggro") {
+		return pAggroRange;
+	}
+	else if (id == "assist") {
+		return pAssistRange;
+	}
+	else if (id == "slow_mitigation") {
+		return slow_mitigation;
+	}
+	else if (id == "loottable_id") {
+		return loottable_id;
+	}
+	else if (id == "healscale") {
+		return healscale;
+	}
+	else if (id == "spellscale") {
+		return spellscale;
+	}
+	else if (id == "npc_spells_id") {
+		return npc_spells_id;
+	}
+	else if (id == "npc_spells_effects_id") {
+		return npc_spells_effects_id;
+	}
+	//default values
+	else if (id == "default_ac") {
+		return default_ac;
+	}
+	else if (id == "default_min_hit") {
+		return default_min_dmg;
+	}
+	else if (id == "default_max_hit") {
+		return default_max_dmg;
+	}
+	else if (id == "default_attack_delay") {
+		return default_attack_delay;
+	}
+	else if (id == "default_accuracy") {
+		return default_accuracy_rating;
+	}
+	else if (id == "default_avoidance") {
+		return default_avoidance_rating;
+	}
+	else if (id == "default_atk") {
+		return default_atk;
+	}
+}
+
 void NPC::LevelScale() {
 
 	uint8 random_level = (zone->random.Int(level, maxlevel));
@@ -2907,7 +3078,7 @@ FACTION_VALUE NPC::GetReverseFactionCon(Mob* iOther) {
 		return GetSpecialFactionCon(iOther);
 
 	if (primaryFaction == 0)
-		return FACTION_INDIFFERENT;
+		return FACTION_INDIFFERENTLY;
 
 	//if we are a pet, use our owner's faction stuff
 	Mob *own = GetOwner();
@@ -2917,7 +3088,7 @@ FACTION_VALUE NPC::GetReverseFactionCon(Mob* iOther) {
 	//make sure iOther is an npc
 	//also, if we dont have a faction, then they arnt gunna think anything of us either
 	if(!iOther->IsNPC() || GetPrimaryFaction() == 0)
-		return(FACTION_INDIFFERENT);
+		return(FACTION_INDIFFERENTLY);
 
 	//if we get here, iOther is an NPC too
 
@@ -2941,7 +3112,7 @@ FACTION_VALUE NPC::CheckNPCFactionAlly(int32 other_faction) {
 			else if (fac->npc_value < 0)
 				return FACTION_SCOWLS;
 			else
-				return FACTION_INDIFFERENT;
+				return FACTION_INDIFFERENTLY;
 		}
 	}
 
@@ -2953,7 +3124,7 @@ FACTION_VALUE NPC::CheckNPCFactionAlly(int32 other_faction) {
 	if (GetPrimaryFaction() == other_faction)
 		return FACTION_ALLY;
 	else
-		return FACTION_INDIFFERENT;
+		return FACTION_INDIFFERENTLY;
 }
 
 bool NPC::IsFactionListAlly(uint32 other_faction) {
@@ -3069,37 +3240,13 @@ void NPC::ClearLastName()
 
 void NPC::DepopSwarmPets()
 {
-
 	if (GetSwarmInfo()) {
 		if (GetSwarmInfo()->duration->Check(false)){
 			Mob* owner = entity_list.GetMobID(GetSwarmInfo()->owner_id);
-			if (owner)
+			if (owner) {
 				owner->SetTempPetCount(owner->GetTempPetCount() - 1);
-
-			Depop();
-			return;
-		}
-
-		//This is only used for optional quest or rule derived behavior now if you force a temp pet on a specific target.
-		if (GetSwarmInfo()->target) {
-			Mob *targMob = entity_list.GetMob(GetSwarmInfo()->target);
-			if(!targMob || (targMob && targMob->IsCorpse())){
-				Mob* owner = entity_list.GetMobID(GetSwarmInfo()->owner_id);
-				if (owner)
-					owner->SetTempPetCount(owner->GetTempPetCount() - 1);
-
-				Depop();
-				return;
 			}
-		}
-	}
-
-	if (IsPet() && GetPetType() == petTargetLock && GetPetTargetLockID()){
-
-		Mob *targMob = entity_list.GetMob(GetPetTargetLockID());
-
-		if(!targMob || (targMob && targMob->IsCorpse())){
-			Kill();
+			Depop();
 			return;
 		}
 	}
@@ -3421,7 +3568,7 @@ void NPC::AIYellForHelp(Mob *sender, Mob *attacker)
 					}
 				}
 
-				if (sender->GetReverseFactionCon(mob) <= FACTION_AMIABLE) {
+				if (sender->GetReverseFactionCon(mob) <= FACTION_AMIABLY) {
 					//attacking someone on same faction, or a friend
 					//Father Nitwit: make sure we can see them.
 					if (mob->CheckLosFN(sender)) {

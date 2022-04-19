@@ -918,11 +918,11 @@ std::string lua_get_class_name(uint8 class_id, uint8 level) {
 	return quest_manager.getclassname(class_id, level);
 }
 
-int lua_get_currency_id(uint32 item_id) {
+uint32 lua_get_currency_id(uint32 item_id) {
 	return quest_manager.getcurrencyid(item_id);
 }
 
-int lua_get_currency_item_id(int currency_id) {
+uint32 lua_get_currency_item_id(uint32 currency_id) {
 	return quest_manager.getcurrencyitemid(currency_id);
 }
 
@@ -1146,12 +1146,13 @@ const char *lua_get_zone_long_name() {
 
 const char *lua_get_zone_long_name_by_name(const char* zone_name) {
 	return ZoneLongName(
-		ZoneID(zone_name)
+		ZoneID(zone_name),
+		true
 	);
 }
 
 const char *lua_get_zone_long_name_by_id(uint32 zone_id) {
-	return ZoneLongName(zone_id);
+	return ZoneLongName(zone_id, true);
 }
 
 const char *lua_get_zone_short_name() {
@@ -1162,7 +1163,7 @@ const char *lua_get_zone_short_name() {
 }
 
 const char *lua_get_zone_short_name_by_id(uint32 zone_id) {
-	return ZoneName(zone_id);
+	return ZoneName(zone_id, true);
 }
 
 int lua_get_zone_instance_id() {
@@ -1410,7 +1411,7 @@ void lua_add_spawn_point(luabind::adl::object table) {
 		lua_remove_spawn_point(spawn2_id);
 
 		auto t = new Spawn2(spawn2_id, spawngroup_id, x, y, z, heading, respawn,
-			variance, timeleft, grid, path_when_zone_idle, condition_id, 
+			variance, timeleft, grid, path_when_zone_idle, condition_id,
 			condition_min_value, enabled, static_cast<EmuAppearance>(animation));
 
 		zone->spawn2_list.Insert(t);
@@ -1743,7 +1744,7 @@ bool lua_is_content_flag_enabled(std::string content_flag){
 }
 
 void lua_set_content_flag(std::string flag_name, bool enabled){
-	ZoneStore::SetContentFlag(flag_name, enabled);
+	content_service.SetContentFlag(flag_name, enabled);
 }
 
 Lua_Expedition lua_get_expedition() {
@@ -3351,6 +3352,30 @@ Lua_Spell lua_get_spell(uint32 spell_id) {
 	return Lua_Spell(spell_id);
 }
 
+std::string lua_get_ldon_theme_name(uint32 theme_id) {
+	return quest_manager.getldonthemename(theme_id);
+}
+
+std::string lua_get_faction_name(int faction_id) {
+	return quest_manager.getfactionname(faction_id);
+}
+
+std::string lua_get_language_name(int language_id) {
+	return quest_manager.getlanguagename(language_id);
+}
+
+std::string lua_get_body_type_name(uint32 bodytype_id) {
+	return quest_manager.getbodytypename(bodytype_id);
+}
+
+std::string lua_get_consider_level_name(uint8 consider_level) {
+	return quest_manager.getconsiderlevelname(consider_level);
+}
+
+std::string lua_get_environmental_damage_name(uint8 damage_type) {
+	return quest_manager.getenvironmentaldamagename(damage_type);
+}
+
 #define LuaCreateNPCParse(name, c_type, default_value) do { \
 	cur = table[#name]; \
 	if(luabind::type(cur) != LUA_TNIL) { \
@@ -3794,6 +3819,12 @@ luabind::scope lua_register_general() {
 		luabind::def("is_npc_spawned", &lua_is_npc_spawned),
 		luabind::def("count_spawned_npcs", &lua_count_spawned_npcs),
 		luabind::def("get_spell", &lua_get_spell),
+		luabind::def("get_ldon_theme_name", &lua_get_ldon_theme_name),
+		luabind::def("get_faction_name", &lua_get_faction_name),
+		luabind::def("get_language_name", &lua_get_language_name),
+		luabind::def("get_body_type_name", &lua_get_body_type_name),
+		luabind::def("get_consider_level_name", &lua_get_consider_level_name),
+		luabind::def("get_environmental_damage_name", &lua_get_environmental_damage_name),
 
 		/*
 			Cross Zone
@@ -4182,7 +4213,9 @@ luabind::scope lua_register_events() {
 			luabind::value("test_buff", static_cast<int>(EVENT_TEST_BUFF)),
 			luabind::value("consider", static_cast<int>(EVENT_CONSIDER)),
 			luabind::value("consider_corpse", static_cast<int>(EVENT_CONSIDER_CORPSE)),
-			luabind::value("loot_zone", static_cast<int>(EVENT_LOOT_ZONE))
+			luabind::value("loot_zone", static_cast<int>(EVENT_LOOT_ZONE)),
+			luabind::value("equip_item_client", static_cast<int>(EVENT_EQUIP_ITEM_CLIENT)),
+			luabind::value("unequip_item_client", static_cast<int>(EVENT_UNEQUIP_ITEM_CLIENT))
 		];
 }
 
@@ -4193,11 +4226,11 @@ luabind::scope lua_register_faction() {
 			luabind::value("Ally", static_cast<int>(FACTION_ALLY)),
 			luabind::value("Warmly", static_cast<int>(FACTION_WARMLY)),
 			luabind::value("Kindly", static_cast<int>(FACTION_KINDLY)),
-			luabind::value("Amiable", static_cast<int>(FACTION_AMIABLE)),
-			luabind::value("Indifferent", static_cast<int>(FACTION_INDIFFERENT)),
-			luabind::value("Apprehensive", static_cast<int>(FACTION_APPREHENSIVE)),
-			luabind::value("Dubious", static_cast<int>(FACTION_DUBIOUS)),
-			luabind::value("Threatenly", static_cast<int>(FACTION_THREATENLY)),
+			luabind::value("Amiable", static_cast<int>(FACTION_AMIABLY)),
+			luabind::value("Indifferent", static_cast<int>(FACTION_INDIFFERENTLY)),
+			luabind::value("Apprehensive", static_cast<int>(FACTION_APPREHENSIVELY)),
+			luabind::value("Dubious", static_cast<int>(FACTION_DUBIOUSLY)),
+			luabind::value("Threatenly", static_cast<int>(FACTION_THREATENINGLY)),
 			luabind::value("Scowls", static_cast<int>(FACTION_SCOWLS))
 		];
 }

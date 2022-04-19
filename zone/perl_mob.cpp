@@ -916,6 +916,35 @@ XS(XS_Mob_SetInvisible) {
 	XSRETURN_EMPTY;
 }
 
+XS(XS_Mob_SetSeeInvisibleLevel); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Mob_SetSeeInvisibleLevel) {
+	dXSARGS;
+	if (items != 2)
+		Perl_croak(aTHX_ "Usage: Mob::SetSeeInvisibleLevel(THIS, uint8 see_invis_level)"); // @categories Script Utility
+	{
+		Mob *THIS;
+		uint8 see_invis_level = (uint8)SvUV(ST(1));
+		VALIDATE_THIS_IS_MOB;
+		THIS->SetInnateSeeInvisible(see_invis_level);
+		THIS->CalcSeeInvisibleLevel();
+	}
+	XSRETURN_EMPTY;
+}
+
+XS(XS_Mob_SetSeeInvisibleUndeadLevel); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Mob_SetSeeInvisibleUndeadLevel) {
+	dXSARGS;
+	if (items != 2)
+		Perl_croak(aTHX_ "Usage: Mob::SetSeeInvisibleUndeadLevel(THIS, uint8 see_invis_undead_level)"); // @categories Script Utility
+	{
+		Mob *THIS;
+		uint8 see_invis_undead_level = (uint8)SvUV(ST(1));
+		VALIDATE_THIS_IS_MOB;
+		THIS->SetSeeInvisibleUndead(see_invis_undead_level);
+	}
+	XSRETURN_EMPTY;
+}
+
 XS(XS_Mob_FindBuff); /* prototype to pass -Wmissing-prototypes */
 XS(XS_Mob_FindBuff) {
 	dXSARGS;
@@ -4701,8 +4730,8 @@ XS(XS_Mob_HasNPCSpecialAtk) {
 XS(XS_Mob_SendAppearanceEffect); /* prototype to pass -Wmissing-prototypes */
 XS(XS_Mob_SendAppearanceEffect) {
 	dXSARGS;
-	if (items < 2 || items > 7)
-		Perl_croak(aTHX_ "Usage: Mob::SendAppearanceEffect(THIS, int32 param_1, [int32 param_2 = 0], [int32 param_3 = 0], [int32 param_4 = 0], [int32 param_5 = 0], [Client* single_client_to_send_to = null])"); // @categories Script Utility
+	if (items < 2 || items > 17)
+		Perl_croak(aTHX_ "Usage: Mob::SendAppearanceEffect(THIS, int32 effect1, [int32 effect2 = 0], [int32 effect3 = 0], [int32 effect4 = 0], [int32 effect5 = 0], [Client* single_client_to_send_to = null]), [uint32 slot1 = 1], [uint32 ground1 = 1], [uint32 slot2 = 1], [uint32 ground2 = 1], [uint32 slot3 = 1], [uint32 ground2 = 1], [uint32 slot4 = 1], [uint32 ground4 = 1], [uint32 slot5 = 1], [uint32 ground5 = 1]"); // @categories Script Utility
 	{
 		Mob *THIS;
 		int32 parm1 = (int32) SvIV(ST(1));
@@ -4710,7 +4739,18 @@ XS(XS_Mob_SendAppearanceEffect) {
 		int32 parm3 = 0;
 		int32 parm4 = 0;
 		int32 parm5 = 0;
+		uint32 value1slot = 1;
+		uint32 value1ground = 1;
+		uint32 value2slot = 1;
+		uint32 value2ground = 1;
+		uint32 value3slot = 1;
+		uint32 value3ground = 1;
+		uint32 value4slot = 1;
+		uint32 value4ground = 1;
+		uint32 value5slot = 1;
+		uint32 value5ground = 1;
 		Client *client = nullptr;
+		bool nullclient = false;
 		VALIDATE_THIS_IS_MOB;
 		if (items > 2) { parm2 = (int32) SvIV(ST(2)); }
 		if (items > 3) { parm3 = (int32) SvIV(ST(3)); }
@@ -4718,15 +4758,131 @@ XS(XS_Mob_SendAppearanceEffect) {
 		if (items > 5) { parm5 = (int32) SvIV(ST(5)); }
 		if (items > 6) {
 			if (sv_derived_from(ST(6), "Client")) {
-				IV tmp = SvIV((SV *) SvRV(ST(6)));
+				IV tmp = SvIV((SV *)SvRV(ST(6)));
 				client = INT2PTR(Client *, tmp);
-			} else
+			}
+			else {
+				nullclient = true;
+			}
+			if (client == nullptr) {
+				nullclient = true;
+			}
+		}
+		if (items > 7) { value1slot = (uint32)SvIV(ST(7)); }
+		if (items > 8) { value1ground = (uint32)SvIV(ST(8)); }
+		if (items > 9) { value2slot = (uint32)SvIV(ST(9)); }
+		if (items > 10) { value2ground = (uint32)SvIV(ST(10)); }
+		if (items > 11) { value3slot = (uint32)SvIV(ST(11)); }
+		if (items > 12) { value3ground = (uint32)SvIV(ST(12)); }
+		if (items > 13) { value4slot = (uint32)SvIV(ST(13)); }
+		if (items > 14) { value4ground = (uint32)SvIV(ST(14)); }
+		if (items > 15) { value5slot = (uint32)SvIV(ST(15)); }
+		if (items > 16) { value5ground = (uint32)SvIV(ST(16)); }
+
+		if (nullclient) {
+			THIS->SendAppearanceEffect(parm1, parm2, parm3, parm4, parm5, 0, value1slot, value1ground, value2slot, value2ground, value3slot, value3ground,
+				value4slot, value4ground, value5slot, value5ground);
+		}
+		else {
+			THIS->SendAppearanceEffect(parm1, parm2, parm3, parm4, parm5, client, value1slot, value1ground, value2slot, value2ground, value3slot, value3ground,
+				value4slot, value4ground, value5slot, value5ground);
+		}
+	}
+	XSRETURN_EMPTY;
+}
+
+XS(XS_Mob_SendAppearanceEffectActor); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Mob_SendAppearanceEffectActor) {
+	dXSARGS;
+	if (items < 3 || items > 12)
+		Perl_croak(aTHX_ "Usage: Mob::SendAppearanceEffectActor(THIS, int32 effect1, uint32 slot1 = 0, [int32 effect2 = 0], [uint32 slot2 = 0], [int32 effect3 = 0], [uint32 slot3 = 0], [int32 effect4 = 0], [uint32 slot4 = 0], [int32 effect5 = 0], [uint32 slot5 = 0], [Client* single_client_to_send_to = null])"); // @categories Script Utility
+	{
+		Mob *THIS;
+		int32 parm1 = (int32)SvIV(ST(1));
+		uint32 value1slot = (uint32)SvIV(ST(2));
+		int32 parm2 = 0;
+		uint32 value2slot = 0;
+		int32 parm3 = 0;
+		uint32 value3slot = 0;
+		int32 parm4 = 0;
+		uint32 value4slot = 0;
+		int32 parm5 = 0;
+		uint32 value5slot = 0;
+		Client *client = nullptr;
+		VALIDATE_THIS_IS_MOB;
+		if (items > 3) { parm2 = (int32)SvIV(ST(3)); }
+		if (items > 4) { value2slot = (uint32)SvIV(ST(4)); }
+		if (items > 5) { parm3 = (int32)SvIV(ST(5)); }
+		if (items > 6) { value3slot = (uint32)SvIV(ST(6)); }
+		if (items > 7) { parm4 = (int32)SvIV(ST(7)); }
+		if (items > 8) { value4slot = (uint32)SvIV(ST(8)); }
+		if (items > 9) { parm5 = (int32)SvIV(ST(9)); }
+		if (items > 10) { value5slot = (uint32)SvIV(ST(10)); }
+		if (items > 11) {
+			if (sv_derived_from(ST(11), "Client")) {
+				IV tmp = SvIV((SV *)SvRV(ST(11)));
+				client = INT2PTR(Client *, tmp);
+			}
+			else
 				Perl_croak(aTHX_ "client is not of type Client");
 			if (client == nullptr)
 				Perl_croak(aTHX_ "client is nullptr, avoiding crash.");
 		}
 
-		THIS->SendAppearanceEffect(parm1, parm2, parm3, parm4, parm5, client);
+		THIS->SendAppearanceEffect(parm1, parm2, parm3, parm4, parm5, client, value1slot, 0, value2slot, 0, value3slot, 0,
+			value4slot, 0, value5slot, 0);
+	}
+	XSRETURN_EMPTY;
+}
+
+XS(XS_Mob_SendAppearanceEffectGround); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Mob_SendAppearanceEffectGround) {
+	dXSARGS;
+	if (items < 3 || items > 8)
+		Perl_croak(aTHX_ "Usage: Mob::SendAppearanceEffectGround(THIS, int32 effect1, [int32 effect2 = 0], [int32 effect3 = 0], [int32 effect4 = 0], [int32 effect5 = 0], [Client* single_client_to_send_to = null])"); // @categories Script Utility
+	{
+		Mob *THIS;
+		int32 parm1 = (int32)SvIV(ST(1));
+		int32 parm2 = 0;
+		int32 parm3 = 0;
+		int32 parm4 = 0;
+		int32 parm5 = 0;
+		Client *client = nullptr;
+		VALIDATE_THIS_IS_MOB;
+		if (items > 3) { parm2 = (int32)SvIV(ST(2)); }
+		if (items > 4) { parm3 = (int32)SvIV(ST(3)); }
+		if (items > 5) { parm4 = (int32)SvIV(ST(4)); }
+		if (items > 6) { parm5 = (int32)SvIV(ST(5)); }
+		if (items > 7) {
+			if (sv_derived_from(ST(6), "Client")) {
+				IV tmp = SvIV((SV *)SvRV(ST(11)));
+				client = INT2PTR(Client *, tmp);
+			}
+			else
+				Perl_croak(aTHX_ "client is not of type Client");
+			if (client == nullptr)
+				Perl_croak(aTHX_ "client is nullptr, avoiding crash.");
+		}
+
+		THIS->SendAppearanceEffect(parm1, parm2, parm3, parm4, parm5, client, 1, 1, 1, 1, 1, 1,
+			1, 1, 1, 1);
+	}
+	XSRETURN_EMPTY;
+}
+
+XS(XS_Mob_RemoveAllAppearanceEffects); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Mob_RemoveAllAppearanceEffects) {
+	dXSARGS;
+	if (items != 1)
+		Perl_croak(aTHX_ "Usage: Mob::RemoveAllAppearanceEffects(THIS)"); // @categories Script Utility
+	{
+		Mob *THIS;
+		VALIDATE_THIS_IS_MOB;
+		THIS->SendIllusionPacket(THIS->GetRace(), THIS->GetGender(), THIS->GetTexture(), THIS->GetHelmTexture(),
+			THIS->GetHairColor(), THIS->GetBeardColor(), THIS->GetEyeColor1(), THIS->GetEyeColor2(),
+			THIS->GetHairStyle(), THIS->GetLuclinFace(), THIS->GetBeard(), 0xFF,
+			THIS->GetDrakkinHeritage(), THIS->GetDrakkinTattoo(), THIS->GetDrakkinDetails(), THIS->GetSize(), false);
+		THIS->ClearAppearenceEffects();
 	}
 	XSRETURN_EMPTY;
 }
@@ -4864,8 +5020,8 @@ XS(XS_Mob_CameraEffect) {
 XS(XS_Mob_SpellEffect); /* prototype to pass -Wmissing-prototypes */
 XS(XS_Mob_SpellEffect) {
 	dXSARGS;
-	if (items < 2 || items > 8)
-		Perl_croak(aTHX_ "Usage: Mob::SpellEffect(THIS, uint32 effect, [uint32 duration = 5000], [uint32 finish_delay = 0], [bool zone_wide = false], [uint32 unk20 = 3000], [bool perm_effect = false], [Client* single_client])"); // @categories Spells and Disciplines
+	if (items < 2 || items > 10)
+		Perl_croak(aTHX_ "Usage: Mob::SpellEffect(THIS, uint32 effect, [uint32 duration = 5000], [uint32 finish_delay = 0], [bool zone_wide = false], [uint32 unk20 = 3000], [bool perm_effect = false], [Client* single_client]), [caster_id = 0], [target_id = 0]"); // @categories Spells and Disciplines
 	{
 		Mob *THIS;
 		uint32 effect       = (uint32) SvUV(ST(1));
@@ -4875,6 +5031,9 @@ XS(XS_Mob_SpellEffect) {
 		uint32 unk20        = 3000;
 		bool   perm_effect  = false;
 		Client *client = nullptr;
+		uint32 caster_id = 0;
+		uint32 target_id = 0;
+		bool nullclient = false;
 		VALIDATE_THIS_IS_MOB;
 		if (items > 2) { duration = (uint32) SvUV(ST(2)); }
 		if (items > 3) { finish_delay = (uint32) SvUV(ST(3)); }
@@ -4883,16 +5042,26 @@ XS(XS_Mob_SpellEffect) {
 		if (items > 6) { perm_effect = (bool) SvTRUE(ST(6)); }
 		if (items > 7) {
 			if (sv_derived_from(ST(7), "Client")) {
-				IV tmp = SvIV((SV *) SvRV(ST(7)));
+				IV tmp = SvIV((SV *)SvRV(ST(7)));
 				client = INT2PTR(Client *, tmp);
-			} else
-				Perl_croak(aTHX_ "client is not of type Client");
-			if (client == nullptr)
-				Perl_croak(aTHX_ "client is nullptr, avoiding crash.");
+			}
+			else {
+				nullclient = true;
+			}
+			if (client == nullptr) {
+				nullclient = true;
+			}
+		}
+		if (items > 8) { caster_id = (uint32)SvUV(ST(8)); }
+		if (items > 9) { target_id = (uint32)SvUV(ST(9)); }
+		
+		if (nullclient) {
+			THIS->SendSpellEffect(effect, duration, finish_delay, zone_wide, unk20, perm_effect, 0, caster_id, target_id);
+		}
+		else {
+			THIS->SendSpellEffect(effect, duration, finish_delay, zone_wide, unk20, perm_effect, client, caster_id, target_id);
 		}
 
-
-		THIS->SendSpellEffect(effect, duration, finish_delay, zone_wide, unk20, perm_effect, client);
 	}
 	XSRETURN_EMPTY;
 }
@@ -5493,6 +5662,46 @@ XS(XS_Mob_GetSpellStat) {
 	XSRETURN(1);
 }
 
+XS(XS_Mob_GetBuffStatValueBySpell); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Mob_GetBuffStatValueBySpell) {
+	dXSARGS;
+	if (items != 3)
+		Perl_croak(aTHX_ "Usage: Mob::GetBuffStatValueBySpell(THIS, int32 spell_id, string stat)"); // @categories Spells and Disciplines
+	{
+		Mob *THIS;
+		int32  RETVAL;
+		int32  spellid = (int32)SvIV(ST(1));
+		Const_char *stat = (Const_char *)SvPV_nolen(ST(2));
+		dXSTARG;
+		VALIDATE_THIS_IS_MOB;
+	
+		RETVAL = THIS->GetBuffStatValueBySpell(spellid, stat);
+		XSprePUSH;
+		PUSHi((IV)RETVAL);
+	}
+	XSRETURN(1);
+}
+
+XS(XS_Mob_GetBuffStatValueBySlot); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Mob_GetBuffStatValueBySlot) {
+	dXSARGS;
+	if (items != 3)
+		Perl_croak(aTHX_ "Usage: Mob::GetBuffStatValueBySlot(THIS, uint8 slot, string stat)"); // @categories Script Utility, Spells and Disciplines
+	{
+		Mob *THIS;
+		int32  RETVAL;
+		uint8 slot = (uint8)SvUV(ST(1));
+		Const_char *stat = (Const_char *)SvPV_nolen(ST(2));
+		dXSTARG;
+		VALIDATE_THIS_IS_MOB;
+
+		RETVAL = THIS->GetBuffStatValueBySlot(slot, stat);
+		XSprePUSH;
+		PUSHi((IV)RETVAL);
+	}
+	XSRETURN(1);
+}
+
 XS(XS_Mob_GetSpecialAbility); /* prototype to pass -Wmissing-prototypes */
 XS(XS_Mob_GetSpecialAbility) {
 	dXSARGS;
@@ -5637,6 +5846,41 @@ XS(XS_Mob_IsBlind) {
 	XSRETURN(1);
 }
 
+XS(XS_Mob_GetInvisibleLevel);
+XS(XS_Mob_GetInvisibleLevel) {
+	dXSARGS;
+	if (items != 1)
+		Perl_croak(aTHX_ "Usage: Mob::GetInvisibleLevel(THIS)"); // @categories Stats and Attributes
+	{
+		Mob *THIS;
+		uint8 RETVAL;
+		dXSTARG;
+		VALIDATE_THIS_IS_MOB;
+		RETVAL = THIS->GetInvisibleLevel();
+		XSprePUSH;
+		PUSHu((UV)RETVAL);
+	}
+	XSRETURN(1);
+}
+
+XS(XS_Mob_GetInvisibleUndeadLevel);
+XS(XS_Mob_GetInvisibleUndeadLevel) {
+	dXSARGS;
+	if (items != 1)
+		Perl_croak(aTHX_ "Usage: Mob::GetInvisibleUndeadLevel(THIS)"); // @categories Stats and Attributes
+	{
+		Mob *THIS;
+		uint8 RETVAL;
+		dXSTARG;
+		VALIDATE_THIS_IS_MOB;
+		RETVAL = THIS->GetInvisibleUndeadLevel();
+		XSprePUSH;
+		PUSHu((UV)RETVAL);
+	}
+	XSRETURN(1);
+}
+
+
 XS(XS_Mob_SeeInvisible);
 XS(XS_Mob_SeeInvisible) {
 	dXSARGS;
@@ -5661,11 +5905,12 @@ XS(XS_Mob_SeeInvisibleUndead) {
 		Perl_croak(aTHX_ "Usage: Mob::SeeInvisibleUndead(THIS)"); // @categories Stats and Attributes
 	{
 		Mob *THIS;
-		bool RETVAL;
+		uint8 RETVAL;
+		dXSTARG;
 		VALIDATE_THIS_IS_MOB;
 		RETVAL = THIS->SeeInvisibleUndead();
-		ST(0) = boolSV(RETVAL);
-		sv_2mortal(ST(0));
+		XSprePUSH;
+		PUSHu((UV)RETVAL);
 	}
 	XSRETURN(1);
 }
@@ -6063,7 +6308,7 @@ XS(XS_Mob_DeleteBucket);
 XS(XS_Mob_DeleteBucket) {
 	dXSARGS;
 	if (items != 2)
-		Perl_croak(aTHX_ "Usage: Mob::DeleteBucket(THIS, std::string bucket_name)"); // @categories Script Utility
+		Perl_croak(aTHX_ "Usage: Mob::DeleteBucket(THIS, string bucket_name)"); // @categories Script Utility
 	{
 		Mob* THIS;
 		std::string bucket_name = (std::string) SvPV_nolen(ST(1));
@@ -6077,7 +6322,7 @@ XS(XS_Mob_GetBucket);
 XS(XS_Mob_GetBucket) {
 	dXSARGS;
 	if (items != 2)
-		Perl_croak(aTHX_ "Usage: Mob::GetBucket(THIS, std::string bucket_name)"); // @categories Script Utility
+		Perl_croak(aTHX_ "Usage: Mob::GetBucket(THIS, string bucket_name)"); // @categories Script Utility
 	{
 		Mob* THIS;
 		dXSTARG;
@@ -6096,7 +6341,7 @@ XS(XS_Mob_GetBucketExpires);
 XS(XS_Mob_GetBucketExpires) {
 	dXSARGS;
 	if (items != 2)
-		Perl_croak(aTHX_ "Usage: Mob::GetBucketExpires(THIS, std::string bucket_name)"); // @categories Script Utility
+		Perl_croak(aTHX_ "Usage: Mob::GetBucketExpires(THIS, string bucket_name)"); // @categories Script Utility
 	{
 		Mob* THIS;
 		dXSTARG;
@@ -6133,7 +6378,7 @@ XS(XS_Mob_GetBucketRemaining);
 XS(XS_Mob_GetBucketRemaining) {
 	dXSARGS;
 	if (items != 2)
-		Perl_croak(aTHX_ "Usage: Mob::GetBucketRemaining(THIS, std::string bucket_name)"); // @categories Script Utility
+		Perl_croak(aTHX_ "Usage: Mob::GetBucketRemaining(THIS, string bucket_name)"); // @categories Script Utility
 	{
 		Mob* THIS;
 		dXSTARG;
@@ -6152,7 +6397,7 @@ XS(XS_Mob_SetBucket);
 XS(XS_Mob_SetBucket) {
 	dXSARGS;
 	if (items < 3 || items > 4)
-		Perl_croak(aTHX_ "Usage: Mob::SetBucket(THIS, std::string bucket_name, std::string bucket_value, [std::string expiration])"); // @categories Script Utility
+		Perl_croak(aTHX_ "Usage: Mob::SetBucket(THIS, string bucket_name, string bucket_value, [string expiration])"); // @categories Script Utility
 	{
 		Mob* THIS;
 		std::string key = (std::string) SvPV_nolen(ST(1));
@@ -6362,6 +6607,46 @@ XS(XS_Mob_GetHateRandomNPC) {
 	XSRETURN(1);
 }
 
+XS(XS_Mob_SetBuffDuration); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Mob_SetBuffDuration) {
+	dXSARGS;
+	if (items < 2 || items > 3)
+		Perl_croak(aTHX_ "Usage: Mob::SetBuffDuration(THIS, spell_id, [int duration = 0])"); // @categories Script Utility, Spells and Disciplines
+	{
+		Mob *THIS;
+		int spell_id = (int)SvIV(ST(1));
+		int duration = 0;
+		VALIDATE_THIS_IS_MOB;
+
+		if (items == 3) {
+			duration = (int)SvIV(ST(2));
+		}
+
+		THIS->SetBuffDuration(spell_id, duration);
+	}
+	XSRETURN_EMPTY;
+}
+
+XS(XS_Mob_ApplySpellBuff); /* prototype to pass -Wmissing-prototypes */
+XS(XS_Mob_ApplySpellBuff) {
+	dXSARGS;
+	if (items < 2 || items > 3)
+		Perl_croak(aTHX_ "Usage: Mob::ApplySpellBuff(THIS, spell_id, [int duration = 0])"); // @categories Script Utility, Spells and Disciplines
+	{
+		Mob *THIS;
+		int spell_id = (int)SvIV(ST(1));
+		int duration = 0;
+		VALIDATE_THIS_IS_MOB;
+
+		if (items == 3) {
+			duration = (int)SvIV(ST(2));
+		}
+
+		THIS->ApplySpellBuff(spell_id, duration);
+	}
+	XSRETURN_EMPTY;
+}
+
 #ifdef BOTS
 XS(XS_Mob_CastToBot); /* prototype to pass -Wmissing-prototypes */
 XS(XS_Mob_CastToBot)
@@ -6417,6 +6702,7 @@ XS(boot_Mob) {
 	newXSproto(strcpy(buf, "AddFeignMemory"), XS_Mob_AddFeignMemory, file, "$$");
 	newXSproto(strcpy(buf, "AddNimbusEffect"), XS_Mob_AddNimbusEffect, file, "$$");
 	newXSproto(strcpy(buf, "AddToHateList"), XS_Mob_AddToHateList, file, "$$;$$$$$");
+	newXSproto(strcpy(buf, "ApplySpellBuff"), XS_Mob_ApplySpellBuff, file, "$$;$");
 	newXSproto(strcpy(buf, "Attack"), XS_Mob_Attack, file, "$$;$$");
 	newXSproto(strcpy(buf, "BehindMob"), XS_Mob_BehindMob, file, "$;$$$");
 	newXSproto(strcpy(buf, "BuffCount"), XS_Mob_BuffCount, file, "$");
@@ -6507,6 +6793,8 @@ XS(boot_Mob) {
 	newXSproto(strcpy(buf, "GetBucketKey"), XS_Mob_GetBucketKey, file, "$");
 	newXSproto(strcpy(buf, "GetBucketRemaining"), XS_Mob_GetBucketRemaining, file, "$$");
 	newXSproto(strcpy(buf, "GetBuffSlotFromType"), XS_Mob_GetBuffSlotFromType, file, "$$");
+	newXSproto(strcpy(buf, "GetBuffStatValueBySpell"), XS_Mob_GetBuffStatValueBySpell, file, "$$$");
+	newXSproto(strcpy(buf, "GetBuffStatValueBySlot"), XS_Mob_GetBuffStatValueBySlot, file, "$$$");
 	newXSproto(strcpy(buf, "GetCHA"), XS_Mob_GetCHA, file, "$");
 	newXSproto(strcpy(buf, "GetCR"), XS_Mob_GetCR, file, "$");
 	newXSproto(strcpy(buf, "GetCasterLevel"), XS_Mob_GetCasterLevel, file, "$$");
@@ -6558,6 +6846,8 @@ XS(boot_Mob) {
 	newXSproto(strcpy(buf, "GetHerosForgeModel"), XS_Mob_GetHerosForgeModel, file, "$$");
 	newXSproto(strcpy(buf, "GetID"), XS_Mob_GetID, file, "$");
 	newXSproto(strcpy(buf, "GetINT"), XS_Mob_GetINT, file, "$");
+	newXSproto(strcpy(buf, "GetInvisibleLevel"), XS_Mob_GetInvisibleLevel, file, "$");
+	newXSproto(strcpy(buf, "GetInvisibleUndeadLevel"), XS_Mob_GetInvisibleUndeadLevel, file, "$");
 	newXSproto(strcpy(buf, "GetInvul"), XS_Mob_GetInvul, file, "$");
 	newXSproto(strcpy(buf, "GetItemHPBonuses"), XS_Mob_GetItemHPBonuses, file, "$");
 	newXSproto(strcpy(buf, "GetItemStat"), XS_Mob_GetItemStat, file, "$$$");
@@ -6685,6 +6975,7 @@ XS(boot_Mob) {
 	newXSproto(strcpy(buf, "ProjectileAnim"), XS_Mob_ProjectileAnim, file, "$$$;$$$$$$");
 	newXSproto(strcpy(buf, "RandomizeFeatures"), XS_Mob_RandomizeFeatures, file, "$$;$");
 	newXSproto(strcpy(buf, "RangedAttack"), XS_Mob_RangedAttack, file, "$$");
+	newXSproto(strcpy(buf, "RemoveAllAppearanceEffects"), XS_Mob_RemoveAllAppearanceEffects, file, "$");
 	newXSproto(strcpy(buf, "RemoveAllNimbusEffects"), XS_Mob_RemoveAllNimbusEffects, file, "$");
 	newXSproto(strcpy(buf, "RemoveFromFeignMemory"), XS_Mob_RemoveFromFeignMemory, file, "$$");
 	newXSproto(strcpy(buf, "RemoveNimbusEffect"), XS_Mob_RemoveNimbusEffect, file, "$$");
@@ -6697,7 +6988,9 @@ XS(boot_Mob) {
 	newXSproto(strcpy(buf, "SeeImprovedHide"), XS_Mob_SeeImprovedHide, file, "$");
 	newXSproto(strcpy(buf, "SeeInvisible"), XS_Mob_SeeInvisible, file, "$");
 	newXSproto(strcpy(buf, "SeeInvisibleUndead"), XS_Mob_SeeInvisibleUndead, file, "$");
-	newXSproto(strcpy(buf, "SendAppearanceEffect"), XS_Mob_SendAppearanceEffect, file, "$$;$$$$");
+	newXSproto(strcpy(buf, "SendAppearanceEffect"), XS_Mob_SendAppearanceEffect, file, "$$;$$$$$$$$$$$$$$");
+	newXSproto(strcpy(buf, "SendAppearanceEffectActor"), XS_Mob_SendAppearanceEffectActor, file, "$$$;$$$$$$$$$");
+	newXSproto(strcpy(buf, "SendAppearanceEffectGround"), XS_Mob_SendAppearanceEffectGround, file, "$$$;$$$$$$$$$");
 	newXSproto(strcpy(buf, "SendIllusion"), XS_Mob_SendIllusion, file, "$$;$$$$$$$$$$$$");
 	newXSproto(strcpy(buf, "SendTo"), XS_Mob_SendTo, file, "$$$$");
 	newXSproto(strcpy(buf, "SendToFixZ"), XS_Mob_SendToFixZ, file, "$$$$");
@@ -6707,6 +7000,7 @@ XS(boot_Mob) {
 	newXSproto(strcpy(buf, "SetAppearance"), XS_Mob_SetAppearance, file, "$$;$");
 	newXSproto(strcpy(buf, "SetBodyType"), XS_Mob_SetBodyType, file, "$$;$");
 	newXSproto(strcpy(buf, "SetBucket"), XS_Mob_SetBucket, file, "$$$;$");
+	newXSproto(strcpy(buf, "SetBuffDuration"), XS_Mob_SetBuffDuration, file, "$$;$");
 	newXSproto(strcpy(buf, "SetCurrentWP"), XS_Mob_SetCurrentWP, file, "$$");
 	newXSproto(strcpy(buf, "SetDeltas"), XS_Mob_SetDeltas, file, "$$$$$");
 	newXSproto(strcpy(buf, "SetDisableMelee"), XS_Mob_SetDisableMelee, file, "$$");
@@ -6734,6 +7028,8 @@ XS(boot_Mob) {
 	newXSproto(strcpy(buf, "SetRace"), XS_Mob_SetRace, file, "$$");
 	newXSproto(strcpy(buf, "SetRunAnimSpeed"), XS_Mob_SetRunAnimSpeed, file, "$$");
 	newXSproto(strcpy(buf, "SetRunning"), XS_Mob_SetRunning, file, "$$");
+	newXSproto(strcpy(buf, "SetSeeInvisibleLevel"), XS_Mob_SetSeeInvisibleLevel, file, "$$");
+	newXSproto(strcpy(buf, "SetSeeInvisibleUndeadLevel"), XS_Mob_SetSeeInvisibleUndeadLevel, file, "$$");
 	newXSproto(strcpy(buf, "SetSlotTint"), XS_Mob_SetSlotTint, file, "$$$$$");
 	newXSproto(strcpy(buf, "SetSpecialAbility"), XS_Mob_SetSpecialAbility, file, "$$$");
 	newXSproto(strcpy(buf, "SetSpecialAbilityParam"), XS_Mob_SetSpecialAbilityParam, file, "$$$$");
@@ -6743,7 +7039,7 @@ XS(boot_Mob) {
 	newXSproto(strcpy(buf, "ShieldAbility"), XS_Mob_ShieldAbility, file, "$$$$$$$$");
 	newXSproto(strcpy(buf, "Shout"), XS_Mob_Shout, file, "$$;@");
 	newXSproto(strcpy(buf, "SignalClient"), XS_Mob_SignalClient, file, "$$$");
-	newXSproto(strcpy(buf, "SpellEffect"), XS_Mob_SpellEffect, file, "$$;$$$$$$");
+	newXSproto(strcpy(buf, "SpellEffect"), XS_Mob_SpellEffect, file, "$$;$$$$$$$$");
 	newXSproto(strcpy(buf, "SpellFinished"), XS_Mob_SpellFinished, file, "$$;$$");
 	newXSproto(strcpy(buf, "Spin"), XS_Mob_Spin, file, "$");
 	newXSproto(strcpy(buf, "StartEnrage"), XS_Mob_StartEnrage, file, "$");

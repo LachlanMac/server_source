@@ -267,9 +267,9 @@ int Lua_NPC::GetMaxWp() {
 	return self->GetMaxWp();
 }
 
-void Lua_NPC::DisplayWaypointInfo(Lua_Client to) {
+void Lua_NPC::DisplayWaypointInfo(Lua_Client client) {
 	Lua_Safe_Call_Void();
-	self->DisplayWaypointInfo(to);
+	self->DisplayWaypointInfo(client);
 }
 
 void Lua_NPC::CalculateNewWaypoint() {
@@ -635,6 +635,30 @@ Lua_NPC_Loot_List Lua_NPC::GetLootList(lua_State* L) {
 	return ret;
 }
 
+void Lua_NPC::AddAISpellEffect(int spell_effect_id, int base_value, int limit_value, int max_value)
+{
+	Lua_Safe_Call_Void();
+	self->AddSpellEffectToNPCList(spell_effect_id, base_value, limit_value, max_value, true);
+}
+
+void Lua_NPC::RemoveAISpellEffect(int spell_effect_id)
+{
+	Lua_Safe_Call_Void();
+	self->RemoveSpellEffectFromNPCList(spell_effect_id, true);
+}
+
+bool Lua_NPC::HasAISpellEffect(int spell_effect_id)
+{
+	Lua_Safe_Call_Bool();
+	return self->HasAISpellEffect(spell_effect_id);
+}
+
+float Lua_NPC::GetNPCStat(const char* identifier)
+{
+	Lua_Safe_Call_Real();
+	return self->GetNPCStat(identifier);
+}
+
 luabind::scope lua_register_npc() {
 	return luabind::class_<Lua_NPC, Lua_Mob>("NPC")	
 	.def(luabind::constructor<>())
@@ -642,6 +666,7 @@ luabind::scope lua_register_npc() {
 	.def("AI_SetRoambox", (void(Lua_NPC::*)(float,float,float,float,float,uint32,uint32))&Lua_NPC::AI_SetRoambox)
 	.def("AddAISpell", (void(Lua_NPC::*)(int,int,int,int,int,int))&Lua_NPC::AddAISpell)
 	.def("AddAISpell", (void(Lua_NPC::*)(int,int,int,int,int,int,int,int))&Lua_NPC::AddAISpell)
+	.def("AddAISpellEffect", (void(Lua_NPC::*)(int,int,int,int))&Lua_NPC::AddAISpellEffect)
 	.def("AddCash", (void(Lua_NPC::*)(int,int,int,int))&Lua_NPC::AddCash)
 	.def("AddItem", (void(Lua_NPC::*)(int,int))&Lua_NPC::AddItem)
 	.def("AddItem", (void(Lua_NPC::*)(int,int,bool))&Lua_NPC::AddItem)
@@ -689,6 +714,7 @@ luabind::scope lua_register_npc() {
 	.def("GetNPCHate", (int(Lua_NPC::*)(Lua_Mob))&Lua_NPC::GetNPCHate)
 	.def("GetNPCSpellsID", (int(Lua_NPC::*)(void))&Lua_NPC::GetNPCSpellsID)
 	.def("GetNPCSpellsID", (int(Lua_NPC::*)(void))&Lua_NPC::GetNPCSpellsID)
+	.def("GetNPCStat", (float(Lua_NPC::*)(const char*))&Lua_NPC::GetNPCStat)
 	.def("GetPetSpellID", (int(Lua_NPC::*)(void))&Lua_NPC::GetPetSpellID)
 	.def("GetPlatinum", (uint32(Lua_NPC::*)(void))&Lua_NPC::GetPlatinum)
 	.def("GetPrimSkill", (int(Lua_NPC::*)(void))&Lua_NPC::GetPrimSkill)
@@ -711,6 +737,7 @@ luabind::scope lua_register_npc() {
 	.def("GetSwarmOwner", (int(Lua_NPC::*)(void))&Lua_NPC::GetSwarmOwner)
 	.def("GetSwarmTarget", (int(Lua_NPC::*)(void))&Lua_NPC::GetSwarmTarget)
 	.def("GetWaypointMax", (int(Lua_NPC::*)(void))&Lua_NPC::GetWaypointMax)
+	.def("HasAISpellEffect", (bool(Lua_NPC::*)(int))&Lua_NPC::HasAISpellEffect)
 	.def("HasItem", (bool(Lua_NPC::*)(uint32))&Lua_NPC::HasItem)
 	.def("IsAnimal", (bool(Lua_NPC::*)(void))&Lua_NPC::IsAnimal)
 	.def("IsGuarding", (bool(Lua_NPC::*)(void))&Lua_NPC::IsGuarding)
@@ -726,6 +753,7 @@ luabind::scope lua_register_npc() {
 	.def("PickPocket", (void(Lua_NPC::*)(Lua_Client))&Lua_NPC::PickPocket)
 	.def("RecalculateSkills", (void(Lua_NPC::*)(void))&Lua_NPC::RecalculateSkills)
 	.def("RemoveAISpell", (void(Lua_NPC::*)(int))&Lua_NPC::RemoveAISpell)
+	.def("RemoveAISpellEffect", (void(Lua_NPC::*)(int))&Lua_NPC::RemoveAISpellEffect)
 	.def("RemoveCash", (void(Lua_NPC::*)(void))&Lua_NPC::RemoveCash)
 	.def("RemoveItem", (void(Lua_NPC::*)(int))&Lua_NPC::RemoveItem)
 	.def("RemoveItem", (void(Lua_NPC::*)(int,int))&Lua_NPC::RemoveItem)

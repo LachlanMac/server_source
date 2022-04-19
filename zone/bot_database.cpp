@@ -322,6 +322,24 @@ bool BotDatabase::LoadBotID(const uint32 owner_id, const std::string& bot_name, 
 	return true;
 }
 
+bool BotDatabase::SaveExp(cBot* bot_inst){
+
+	query = StringFormat(
+		"UPDATE `bot_data`"
+		" SET"
+		" `exp` = '%u'"
+		" WHERE `bot_id` = '%u'",
+		bot_inst->GetExperience(),
+		bot_inst->GetBotID()
+	);
+	auto results = database.QueryDatabase(query);
+	if (!results.Success())
+		return false;
+
+	return true;
+
+}
+
 bool BotDatabase::LoadBot(const uint32 bot_id, Bot*& loaded_bot)
 {
 
@@ -604,7 +622,7 @@ bool BotDatabase::SaveNewBot(Bot* bot_inst, uint32& bot_id)
 		bot_inst->GetCorrup(),
 		(uint32)BOT_FOLLOW_DISTANCE_DEFAULT,
 		(IsCasterClass(bot_inst->GetClass()) ? (uint8)RuleI(Bots, CasterStopMeleeLevel) : 255),
-		1000,
+		1,
 		0,
 		0
 	);
@@ -2667,8 +2685,8 @@ bool BotDatabase::LoadGroupedBotsByGroupID(const uint32 owner_id, const uint32 g
 		"SELECT `charid`"
 		" FROM `group_id`"
 		" WHERE `groupid` = '%u'"
-		" AND `charid` IN ("
-		"  SELECT `bot_id`"
+		" AND `name` IN ("
+		"  SELECT `name`"
 		"  FROM `bot_data`"
 		"  WHERE `owner_id` = '%u'"
 		"  )",

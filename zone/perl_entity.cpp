@@ -1040,12 +1040,12 @@ XS(XS_EntityList_DeleteNPCCorpses) {
 		Perl_croak(aTHX_ "Usage: EntityList::DeleteNPCCorpses(THIS)"); // @categories Corpse
 	{
 		EntityList *THIS;
-		int32      RETVAL;
+		uint32      RETVAL;
 		dXSTARG;
 		VALIDATE_THIS_IS_ENTITY;
 		RETVAL = THIS->DeleteNPCCorpses();
 		XSprePUSH;
-		PUSHi((IV) RETVAL);
+		PUSHu((UV) RETVAL);
 	}
 	XSRETURN(1);
 }
@@ -1057,12 +1057,12 @@ XS(XS_EntityList_DeletePlayerCorpses) {
 		Perl_croak(aTHX_ "Usage: EntityList::DeletePlayerCorpses(THIS)"); // @categories Account and Character, Corpse
 	{
 		EntityList *THIS;
-		int32      RETVAL;
+		uint32      RETVAL;
 		dXSTARG;
 		VALIDATE_THIS_IS_ENTITY;
 		RETVAL = THIS->DeletePlayerCorpses();
 		XSprePUSH;
-		PUSHi((IV) RETVAL);
+		PUSHu((UV) RETVAL);
 	}
 	XSRETURN(1);
 }
@@ -1215,24 +1215,26 @@ XS(XS_EntityList_MessageGroup) {
 XS(XS_EntityList_GetRandomClient); /* prototype to pass -Wmissing-prototypes */
 XS(XS_EntityList_GetRandomClient) {
 	dXSARGS;
-	if ((items < 5) || (items > 6))
+	if (items < 5 || items > 6)
 		Perl_croak(aTHX_ "Usage: EntityList::GetRandomClient(THIS, float x, float y, float z, float distance, [Client* exclude_client = nullptr])"); // @categories Account and Character, Script Utility
 	{
 		EntityList *THIS;
-		Client     *RETVAL, *c = nullptr;
-		float      x           = (float) SvNV(ST(1));
-		float      y           = (float) SvNV(ST(2));
-		float      z           = (float) SvNV(ST(3));
-		float      d           = (float) SvNV(ST(4));
+		Client *RETVAL, *exclude_client = nullptr;
+		float x = (float) SvNV(ST(1));
+		float y = (float) SvNV(ST(2));
+		float z = (float) SvNV(ST(3));
+		float distance = (float) SvNV(ST(4));
 		VALIDATE_THIS_IS_ENTITY;
+
 		if (items == 6) {
 			if (sv_derived_from(ST(5), "Client")) {
 				IV tmp = SvIV((SV *) SvRV(ST(5)));
-				c = INT2PTR(Client *, tmp);
+				exclude_client = INT2PTR(Client *, tmp);
 			}
 		}
-		RETVAL                 = entity_list.GetRandomClient(glm::vec3(x, y, z), d * d, c);
-		ST(0)                  = sv_newmortal();
+		
+		RETVAL = entity_list.GetRandomClient(glm::vec3(x, y, z), (distance * distance), exclude_client);
+		ST(0) = sv_newmortal();
 		sv_setref_pv(ST(0), "Client", (void *) RETVAL);
 	}
 	XSRETURN(1);
@@ -1343,6 +1345,64 @@ XS(XS_EntityList_GetBotList) {
 		}
 	}
 	XSRETURN(bot_count);
+}
+
+XS(XS_EntityList_GetBotListByCharacterID);
+XS(XS_EntityList_GetBotListByCharacterID) {
+	dXSARGS;
+	if (items != 2) {
+		Perl_croak(aTHX_ "Usage: EntityList::GetBotListByCharacterID(THIS, uint32 character_id)"); // @categories Script Utility, Bot
+	}
+
+	EntityList *THIS;
+	uint32 character_id = (uint32) SvUV(ST(1));
+	VALIDATE_THIS_IS_ENTITY;
+
+	auto current_bot_list = THIS->GetBotListByCharacterID(character_id);
+	auto bot_count = current_bot_list.size();
+
+    if (bot_count) {
+        EXTEND(sp, bot_count);
+        for (int index = 0; index < bot_count; ++index) {
+            ST(index) = sv_newmortal();
+			sv_setref_pv(ST(index), "Bot", (void *) current_bot_list[index]);
+			XPUSHs(ST(index));
+        }
+        XSRETURN(bot_count);
+    }
+
+    SV* return_value = &PL_sv_undef;
+    ST(0) = return_value;
+    XSRETURN(1);
+}
+
+XS(XS_EntityList_GetBotListByClientName);
+XS(XS_EntityList_GetBotListByClientName) {
+	dXSARGS;
+	if (items != 2) {
+		Perl_croak(aTHX_ "Usage: EntityList::GetBotListByClientName(THIS, string client_name)"); // @categories Script Utility, Bot
+	}
+
+	EntityList *THIS;
+	std::string client_name = (std::string) SvPV_nolen(ST(1));
+	VALIDATE_THIS_IS_ENTITY;
+
+	auto current_bot_list = THIS->GetBotListByClientName(client_name);
+	auto bot_count = current_bot_list.size();
+
+    if (bot_count) {
+        EXTEND(sp, bot_count);
+        for (int index = 0; index < bot_count; ++index) {
+            ST(index) = sv_newmortal();
+			sv_setref_pv(ST(index), "Bot", (void *) current_bot_list[index]);
+			XPUSHs(ST(index));
+        }
+        XSRETURN(bot_count);
+    }
+
+    SV* return_value = &PL_sv_undef;
+    ST(0) = return_value;
+    XSRETURN(1);
 }
 #endif
 
@@ -1460,6 +1520,62 @@ XS(XS_EntityList_SignalAllClients) {
 	XSRETURN_EMPTY;
 }
 
+XS(XS_EntityList_GetRandomMob); /* prototype to pass -Wmissing-prototypes */
+XS(XS_EntityList_GetRandomMob) {
+	dXSARGS;
+	if (items < 5 || items > 6)
+		Perl_croak(aTHX_ "Usage: EntityList::GetRandomMob(THIS, float x, float y, float z, float distance, [Mob* exclude_mob = nullptr])"); // @categories Account and Character, Script Utility
+	{
+		EntityList *THIS;
+		Mob *RETVAL, *exclude_mob = nullptr;
+		float x = (float) SvNV(ST(1));
+		float y = (float) SvNV(ST(2));
+		float z = (float) SvNV(ST(3));
+		float distance = (float) SvNV(ST(4));
+		VALIDATE_THIS_IS_ENTITY;
+
+		if (items == 6) {
+			if (sv_derived_from(ST(5), "Mob")) {
+				IV tmp = SvIV((SV *) SvRV(ST(5)));
+				exclude_mob = INT2PTR(Mob*, tmp);
+			}
+		}
+
+		RETVAL = entity_list.GetRandomMob(glm::vec3(x, y, z), (distance * distance), exclude_mob);
+		ST(0) = sv_newmortal();
+		sv_setref_pv(ST(0), "Mob", (void *) RETVAL);
+	}
+	XSRETURN(1);
+}
+
+XS(XS_EntityList_GetRandomNPC); /* prototype to pass -Wmissing-prototypes */
+XS(XS_EntityList_GetRandomNPC) {
+	dXSARGS;
+	if (items < 5 || items > 6)
+		Perl_croak(aTHX_ "Usage: EntityList::GetRandomNPC(THIS, float x, float y, float z, float distance, [NPC* exclude_npc = nullptr])"); // @categories Account and Character, Script Utility
+	{
+		EntityList *THIS;
+		NPC *RETVAL, *exclude_npc = nullptr;
+		float x = (float) SvNV(ST(1));
+		float y = (float) SvNV(ST(2));
+		float z = (float) SvNV(ST(3));
+		float distance = (float) SvNV(ST(4));
+		VALIDATE_THIS_IS_ENTITY;
+
+		if (items == 6) {
+			if (sv_derived_from(ST(5), "NPC")) {
+				IV tmp = SvIV((SV *) SvRV(ST(5)));
+				exclude_npc = INT2PTR(NPC*, tmp);
+			}
+		}
+
+		RETVAL = entity_list.GetRandomNPC(glm::vec3(x, y, z), (distance * distance), exclude_npc);
+		ST(0) = sv_newmortal();
+		sv_setref_pv(ST(0), "NPC", (void *) RETVAL);
+	}
+	XSRETURN(1);
+}
+
 #ifdef __cplusplus
 extern "C"
 #endif
@@ -1490,6 +1606,8 @@ XS(boot_EntityList) {
 	newXSproto(strcpy(buf, "GetBotByID"), XS_EntityList_GetBotByID, file, "$$");
 	newXSproto(strcpy(buf, "GetBotByName"), XS_EntityList_GetBotByName, file, "$$");
 	newXSproto(strcpy(buf, "GetBotList"), XS_EntityList_GetBotList, file, "$");
+	newXSproto(strcpy(buf, "GetBotListByCharacterID"), XS_EntityList_GetBotListByCharacterID, file, "$$");
+	newXSproto(strcpy(buf, "GetBotListByClientName"), XS_EntityList_GetBotListByClientName, file, "$$");
 #endif
 	newXSproto(strcpy(buf, "GetClientByAccID"), XS_EntityList_GetClientByAccID, file, "$$");
 	newXSproto(strcpy(buf, "GetClientByCharID"), XS_EntityList_GetClientByCharID, file, "$$");
@@ -1524,6 +1642,8 @@ XS(boot_EntityList) {
 	newXSproto(strcpy(buf, "GetRaidByClient"), XS_EntityList_GetRaidByClient, file, "$$");
 	newXSproto(strcpy(buf, "GetRaidByID"), XS_EntityList_GetRaidByID, file, "$$");
 	newXSproto(strcpy(buf, "GetRandomClient"), XS_EntityList_GetRandomClient, file, "$$$$$;$");
+	newXSproto(strcpy(buf, "GetRandomMob"), XS_EntityList_GetRandomMob, file, "$$$$$;$");
+	newXSproto(strcpy(buf, "GetRandomNPC"), XS_EntityList_GetRandomNPC, file, "$$$$$;$");
 	newXSproto(strcpy(buf, "HalveAggro"), XS_EntityList_HalveAggro, file, "$$");
 	newXSproto(strcpy(buf, "IsMobSpawnedByNpcTypeID"), XS_EntityList_IsMobSpawnedByNpcTypeID, file, "$$");
 	newXSproto(strcpy(buf, "MakeNameUnique"), XS_EntityList_MakeNameUnique, file, "$$");

@@ -783,16 +783,18 @@ public:
 
 	void GMKill();
 	inline bool IsMedding() const {return medding;}
-	inline uint16 GetDuelTarget() const { return duel_target; }
+	inline uint32 GetDuelTarget() const { return duel_target; }
 	inline bool IsDueling() const { return duelaccepted; }
-	inline void SetDuelTarget(uint16 set_id) { duel_target=set_id; }
+	inline void SetDuelTarget(uint32 set_id) { duel_target = set_id; }
 	inline void SetDueling(bool duel) { duelaccepted = duel; }
 	// use this one instead
 	void MemSpell(uint16 spell_id, int slot, bool update_client = true);
 	void UnmemSpell(int slot, bool update_client = true);
 	void UnmemSpellBySpellID(int32 spell_id);
 	void UnmemSpellAll(bool update_client = true);
+	int FindEmptyMemSlot();
 	uint16 FindMemmedSpellBySlot(int slot);
+	int FindMemmedSpellBySpellID(uint16 spell_id);
 	int MemmedCount();
 	std::vector<int> GetLearnableDisciplines(uint8 min_level = 1, uint8 max_level = 0);
 	std::vector<int> GetLearnedDisciplines();
@@ -808,9 +810,15 @@ public:
 	uint16 ScribeSpells(uint8 min_level, uint8 max_level);
 	uint16 LearnDisciplines(uint8 min_level, uint8 max_level);
 
+	// Configurable Tracking Skill
+	uint16 GetClassTrackingDistanceMultiplier(uint16 class_);
+
+	bool CanThisClassTrack();
+
 	// defer save used when bulk saving
 	void UnscribeSpell(int slot, bool update_client = true, bool defer_save = false);
 	void UnscribeSpellAll(bool update_client = true);
+	void UnscribeSpellBySpellID(uint16 spell_id, bool update_client = true);
 	void UntrainDisc(int slot, bool update_client = true, bool defer_save = false);
 	void UntrainDiscAll(bool update_client = true);
 	void UntrainDiscBySpellID(uint16 spell_id, bool update_client = true);
@@ -828,9 +836,6 @@ public:
 	inline uint8 GetBecomeNPCLevel() const { return npclevel; }
 	inline void SetBecomeNPC(bool flag) { npcflag = flag; }
 	inline void SetBecomeNPCLevel(uint8 level) { npclevel = level; }
-	void SetFeigned(bool in_feigned);
-	/// this cures timing issues cuz dead animation isn't done but server side feigning is?
-	inline bool GetFeigned() const { return(feigned); }
 	EQStreamInterface* Connection() { return eqs; }
 #ifdef PACKET_PROFILER
 	void DumpPacketProfile() { if(eqs) eqs->DumpPacketProfile(); }
@@ -847,6 +852,7 @@ public:
 	void SummonHorse(uint16 spell_id);
 	void SetHorseId(uint16 horseid_in);
 	inline void SetControlledMobId(uint16 mob_id_in) { controlled_mob_id = mob_id_in; }
+	uint16 GetControlledMobId() const{ return controlled_mob_id; }
 	uint16 GetHorseId() const { return horseId; }
 	bool CanMedOnHorse();
 
@@ -904,7 +910,7 @@ public:
 	int32 CalcAAFocus(focusType type, const AA::Rank &rank, uint16 spell_id);
 	void SetAATitle(const char *Title);
 	void SetTitleSuffix(const char *txt);
-	void MemorizeSpell(uint32 slot, uint32 spellid, uint32 scribing);
+	void MemorizeSpell(uint32 slot, uint32 spellid, uint32 scribing, uint32 reduction = 0);
 
 	// Item methods
 	void EVENT_ITEM_ScriptStopReturn();
@@ -975,7 +981,7 @@ public:
 	//bool DecreaseByType(uint32 type, uint8 amt);
 	bool DecreaseByID(uint32 type, int16 quantity);
 	uint8 SlotConvert2(uint8 slot); //Maybe not needed.
-	void Escape(); //AA Escape
+	void Escape(); //keep or quest function
 	void DisenchantSummonedBags(bool client_update = true);
 	void RemoveNoRent(bool client_update = true);
 	void RemoveDuplicateLore(bool client_update = true);
@@ -1011,6 +1017,10 @@ public:
 
 	void SetLinkedSpellReuseTimer(uint32 timer_id, uint32 duration);
 	bool IsLinkedSpellReuseTimerReady(uint32 timer_id);
+	
+	void ResetCastbarCooldownBySlot(int slot);
+	void ResetAllCastbarCooldowns();
+	void ResetCastbarCooldownBySpellID(uint32 spell_id);
 
 	bool CheckTitle(int titleset);
 	void EnableTitle(int titleset);
@@ -1483,6 +1493,10 @@ public:
 	bool GroupFollow(Client* inviter);
 	inline bool  GetRunMode() const { return runmode; }
 
+	void SendItemRecastTimer(int32 recast_type, uint32 recast_delay = 0);
+	void SetItemRecastTimer(int32 spell_id, uint32 inventory_slot);
+	bool HasItemRecastTimer(int32 spell_id, uint32 inventory_slot);
+
 	inline bool AggroMeterAvailable() const { return ((m_ClientVersionBit & EQ::versions::maskRoF2AndLater)) && RuleB(Character, EnableAggroMeter); } // RoF untested
 	inline void SetAggroMeterLock(int in) { m_aggrometer.set_lock_id(in); }
 
@@ -1521,6 +1535,7 @@ public:
 	void UpdateMercLevel();
 	void CheckMercSuspendTimer();
 	Timer* GetMercTimer() { return &merc_timer; };
+	Timer* GetPickLockTimer() { return &pick_lock_timer; };
 
 	const char* GetRacePlural(Client* client);
 	const char* GetClassPlural(Client* client);
@@ -1555,7 +1570,7 @@ public:
 	int mod_client_damage(int damage, EQ::skills::SkillType skillinuse, int hand, const EQ::ItemInstance* weapon, Mob* other);
 	bool mod_client_message(char* message, uint8 chan_num);
 	bool mod_can_increase_skill(EQ::skills::SkillType skillid, Mob* against_who);
-	int16 mod_increase_skill_chance(int16 chance, Mob* against_who);
+	double mod_increase_skill_chance(double chance, Mob* against_who);
 	int mod_bindwound_percent(int max_percent, Mob* bindmob);
 	int mod_bindwound_hp(int bindhps, Mob* bindmob);
 	int mod_client_haste(int h);
@@ -1574,6 +1589,11 @@ public:
 	int mod_consume(EQ::ItemData *item, EQ::item::ItemType type, int change);
 	int mod_food_value(const EQ::ItemData *item, int change);
 	int mod_drink_value(const EQ::ItemData *item, int change);
+
+	inline int32 GetEnvironmentDamageModifier() const { return environment_damage_modifier; }
+	void SetEnvironmentDamageModifier(int32 val) { environment_damage_modifier = val; }
+	inline bool GetInvulnerableEnvironmentDamage() const { return invulnerable_environment_damage; }
+	void SetInvulnerableEnvironmentDamage(bool val) { invulnerable_environment_damage = val; }
 
 	void ShowNumHits(); // work around function for numhits not showing on buffs
 
@@ -1633,7 +1653,7 @@ protected:
 	void MakeBuffFadePacket(uint16 spell_id, int slot_id, bool send_message = true);
 	bool client_data_loaded;
 
-	int32 GetFocusEffect(focusType type, uint16 spell_id);
+	int32 GetFocusEffect(focusType type, uint16 spell_id, Mob *caster = nullptr, bool from_buff_tic = false);
 	uint16 GetSympatheticFocusEffect(focusType type, uint16 spell_id);
 
 	void FinishAlternateAdvancementPurchase(AA::Rank *rank, bool ignore_cost);
@@ -1774,6 +1794,8 @@ private:
 	int Haste; //precalced value
 	uint32 tmSitting; // time stamp started sitting, used for HP regen bonus added on MAY 5, 2004
 
+	int32 environment_damage_modifier;
+	bool invulnerable_environment_damage;
 
 	// dev tools
 	bool display_mob_info_window;
@@ -1837,7 +1859,6 @@ private:
 	Timer global_channel_timer;
 	Timer fishing_timer;
 	Timer endupkeep_timer;
-	Timer forget_timer; // our 2 min everybody forgets you timer
 	Timer autosave_timer;
 	Timer client_scan_npc_aggro_timer;
 	Timer client_zone_wide_full_position_update_timer;
@@ -1862,7 +1883,10 @@ private:
 	Timer consent_throttle_timer;
 	Timer dynamiczone_removal_timer;
 	Timer task_request_timer;
+	Timer pick_lock_timer;
 
+	Timer heroforge_wearchange_timer;
+	
 	glm::vec3 m_Proximity;
 	glm::vec4 last_position_before_bulk_update;
 
@@ -1874,7 +1898,6 @@ private:
 
 	bool npcflag;
 	uint8 npclevel;
-	bool feigned;
 	bool bZoning;
 	bool tgb;
 	bool instalog;

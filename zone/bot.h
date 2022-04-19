@@ -604,20 +604,16 @@ public:
 	void SetExperience(uint32 experience){_experience = experience;}
 	void SetAAExperience(uint32 experience){_aaExperience = experience;}
 	void SetAAPercentage(uint32 percentage){_aaPercentage = percentage;}
-
 	void SetLevelFromExperience();
-	
-
 	//logic for bot AI
 	bool IsTank();
 	bool IsCaster();
-	
-	
+
 protected:
 	virtual void PetAIProcess();
 	virtual void BotMeditate(bool isSitting);
 	virtual bool CheckBotDoubleAttack(bool Triple = false);
-	virtual int32 GetBotFocusEffect(focusType bottype, uint16 spell_id);
+	virtual int32 GetBotFocusEffect(focusType bottype, uint16 spell_id, bool from_buff_tic = false);
 	virtual int32 CalcBotFocusEffect(focusType bottype, uint16 focus_id, uint16 spell_id, bool best_focus=false);
 	virtual int32 CalcBotAAFocus(focusType type, uint32 aa_ID, uint32 points, uint16 spell_id);
 	virtual void PerformTradeWithClient(int16 beginSlotID, int16 endSlotID, Client* client);
@@ -715,11 +711,11 @@ private:
 	int32 _baseATK;
 	uint16 _baseRace;	// Necessary to preserve the race otherwise bots get their race updated in the db when they get an illusion.
 	uint8 _baseGender;	// Bots gender. Necessary to preserve the original value otherwise it can be changed by illusions.
-
 	// Bot Leveling Variables
 	uint32 _experience;
 	uint32 _aaExperience;
 	uint32 _aaPercentage;
+	uint8 _killedmobs;
 	// Class Methods
 	void LoadAAs();
 	int32 acmod();
@@ -739,7 +735,7 @@ private:
 	void GetBotItems(EQ::InventoryProfile &inv, std::string* errorMessage);
 	void BotAddEquipItem(int slot, uint32 id);
 	uint32 GetBotItemBySlot(uint32 slotID);
-
+	bool SaveExp();
 	// Private "Pet" Methods
 	bool LoadPet();	// Load and spawn bot pet if there is one
 	bool SavePet();	// Save and depop bot pet if there is one

@@ -397,18 +397,7 @@ void QuestManager::Zone(const char *zone_name) {
 	QuestManagerCurrentQuestVars();
 	if (initiator && initiator->IsClient())
 	{
-		auto pack = new ServerPacket(ServerOP_ZoneToZoneRequest, sizeof(ZoneToZone_Struct));
-		ZoneToZone_Struct* ztz = (ZoneToZone_Struct*) pack->pBuffer;
-		ztz->response = 0;
-		ztz->current_zone_id = zone->GetZoneID();
-		ztz->current_instance_id = zone->GetInstanceID();
-		ztz->requested_zone_id = ZoneID(zone_name);
-		ztz->admin = initiator->Admin();
-		strcpy(ztz->name, initiator->GetName());
-		ztz->guild_id = initiator->GuildID();
-		ztz->ignorerestrictions = 3;
-		worldserver.SendPacket(pack);
-		safe_delete(pack);
+		initiator->MoveZone(zone_name);
 	}
 }
 
@@ -416,35 +405,13 @@ void QuestManager::ZoneGroup(const char *zone_name) {
 	QuestManagerCurrentQuestVars();
 	if (initiator && initiator->IsClient()) {
 		if (!initiator->GetGroup()) {
-			auto pack = new ServerPacket(ServerOP_ZoneToZoneRequest, sizeof(ZoneToZone_Struct));
-			ZoneToZone_Struct* ztz = (ZoneToZone_Struct*) pack->pBuffer;
-			ztz->response = 0;
-			ztz->current_zone_id = zone->GetZoneID();
-			ztz->current_instance_id = zone->GetInstanceID();
-			ztz->requested_zone_id = ZoneID(zone_name);
-			ztz->admin = initiator->Admin();
-			strcpy(ztz->name, initiator->GetName());
-			ztz->guild_id = initiator->GuildID();
-			ztz->ignorerestrictions = 3;
-			worldserver.SendPacket(pack);
-			safe_delete(pack);
+			initiator->MoveZone(zone_name);
 		} else {
 			auto client_group = initiator->GetGroup();
 			for (int member_index = 0; member_index < MAX_GROUP_MEMBERS; member_index++) {
 				if (client_group->members[member_index] && client_group->members[member_index]->IsClient()) {
 					auto group_member = client_group->members[member_index]->CastToClient();
-					auto pack = new ServerPacket(ServerOP_ZoneToZoneRequest, sizeof(ZoneToZone_Struct));
-					ZoneToZone_Struct* ztz = (ZoneToZone_Struct*) pack->pBuffer;
-					ztz->response = 0;
-					ztz->current_zone_id = zone->GetZoneID();
-					ztz->current_instance_id = zone->GetInstanceID();
-					ztz->requested_zone_id = ZoneID(zone_name);
-					ztz->admin = group_member->Admin();
-					strcpy(ztz->name, group_member->GetName());
-					ztz->guild_id = group_member->GuildID();
-					ztz->ignorerestrictions = 3;
-					worldserver.SendPacket(pack);
-					safe_delete(pack);
+					group_member->MoveZone(zone_name);
 				}
 			}
 		}
@@ -455,35 +422,13 @@ void QuestManager::ZoneRaid(const char *zone_name) {
 	QuestManagerCurrentQuestVars();
 	if (initiator && initiator->IsClient()) {
 		if (!initiator->GetRaid()) {
-			auto pack = new ServerPacket(ServerOP_ZoneToZoneRequest, sizeof(ZoneToZone_Struct));
-			ZoneToZone_Struct* ztz = (ZoneToZone_Struct*) pack->pBuffer;
-			ztz->response = 0;
-			ztz->current_zone_id = zone->GetZoneID();
-			ztz->current_instance_id = zone->GetInstanceID();
-			ztz->requested_zone_id = ZoneID(zone_name);
-			ztz->admin = initiator->Admin();
-			strcpy(ztz->name, initiator->GetName());
-			ztz->guild_id = initiator->GuildID();
-			ztz->ignorerestrictions = 3;
-			worldserver.SendPacket(pack);
-			safe_delete(pack);
+			initiator->MoveZone(zone_name);
 		} else {
 			auto client_raid = initiator->GetRaid();
 			for (int member_index = 0; member_index < MAX_RAID_MEMBERS; member_index++) {
 				if (client_raid->members[member_index].member && client_raid->members[member_index].member->IsClient()) {
 					auto raid_member = client_raid->members[member_index].member->CastToClient();
-					auto pack = new ServerPacket(ServerOP_ZoneToZoneRequest, sizeof(ZoneToZone_Struct));
-					ZoneToZone_Struct* ztz = (ZoneToZone_Struct*) pack->pBuffer;
-					ztz->response = 0;
-					ztz->current_zone_id = zone->GetZoneID();
-					ztz->current_instance_id = zone->GetInstanceID();
-					ztz->requested_zone_id = ZoneID(zone_name);
-					ztz->admin = raid_member->Admin();
-					strcpy(ztz->name, raid_member->GetName());
-					ztz->guild_id = raid_member->GuildID();
-					ztz->ignorerestrictions = 3;
-					worldserver.SendPacket(pack);
-					safe_delete(pack);
+					raid_member->MoveZone(zone_name);
 				}
 			}
 		}
@@ -1036,6 +981,26 @@ std::string QuestManager::getskillname(int skill_id) {
 	return EQ::skills::GetSkillName(static_cast<EQ::skills::SkillType>(skill_id));
 }
 
+std::string QuestManager::getldonthemename(uint32 theme_id) {
+	return EQ::constants::GetLDoNThemeName(theme_id);
+}
+
+std::string QuestManager::getfactionname(int faction_id) {
+	return content_db.GetFactionName(faction_id);
+}
+
+std::string QuestManager::getlanguagename(int language_id) {
+	return EQ::constants::GetLanguageName(language_id);
+}
+
+std::string QuestManager::getbodytypename(uint32 bodytype_id) {
+	return EQ::constants::GetBodyTypeName(static_cast<bodyType>(bodytype_id));
+}
+
+std::string QuestManager::getconsiderlevelname(uint8 consider_level) {
+	return EQ::constants::GetConsiderLevelName(consider_level);
+}
+
 void QuestManager::safemove() {
 	QuestManagerCurrentQuestVars();
 	if (initiator && initiator->IsClient())
@@ -1337,7 +1302,8 @@ void QuestManager::save() {
 
 void QuestManager::faction(int faction_id, int faction_value, int temp) {
 	QuestManagerCurrentQuestVars();
-	if (initiator && initiator->IsClient()) {
+	running_quest run = quests_running_.top();
+	if(run.owner->IsCharmed() == false && initiator && initiator->IsClient()) {
 		if(faction_id != 0 && faction_value != 0) {
 			initiator->SetFactionLevel2(
 				initiator->CharacterID(),
@@ -3009,28 +2975,12 @@ std::string QuestManager::getclassname(uint8 class_id, uint8 level) {
 	return GetClassIDName(class_id, level);
 }
 
-int QuestManager::getcurrencyid(uint32 item_id) {
-	auto iter = zone->AlternateCurrencies.begin();
-	while (iter != zone->AlternateCurrencies.end()) {
-		if (item_id == (*iter).item_id) {
-			return (*iter).id;
-		}
-		++iter;
-	}
-	return 0;
+uint32 QuestManager::getcurrencyid(uint32 item_id) {
+	return zone->GetCurrencyID(item_id);
 }
 
-int QuestManager::getcurrencyitemid(int currency_id) {
-	if (currency_id > 0) {
-		auto iter = zone->AlternateCurrencies.begin();
-		while (iter != zone->AlternateCurrencies.end()) {
-			if (currency_id == (*iter).id) {
-				return (*iter).item_id;
-			}
-			++iter;
-		}
-	}
-	return 0;
+uint32 QuestManager::getcurrencyitemid(uint32 currency_id) {
+	return zone->GetCurrencyItemID(currency_id);
 }
 
 const char* QuestManager::getguildnamebyid(int guild_id) {
@@ -3105,19 +3055,19 @@ uint8 QuestManager::FactionValue()
 			case FACTION_SCOWLS:
 				newfac = 1;
 				break;
-			case FACTION_THREATENLY:
+			case FACTION_THREATENINGLY:
 				newfac = 2;
 				break;
-			case FACTION_DUBIOUS:
+			case FACTION_DUBIOUSLY:
 				newfac = 3;
 				break;
-			case FACTION_APPREHENSIVE:
+			case FACTION_APPREHENSIVELY:
 				newfac = 4;
 				break;
-			case FACTION_INDIFFERENT:
+			case FACTION_INDIFFERENTLY:
 				newfac = 5;
 				break;
-			case FACTION_AMIABLE:
+			case FACTION_AMIABLY:
 				newfac = 6;
 				break;
 			case FACTION_KINDLY:
@@ -3229,15 +3179,15 @@ int32 QuestManager::GetZoneID(const char *zone) {
 
 std::string QuestManager::GetZoneLongName(std::string zone_short_name)
 {
-	return ZoneLongName(ZoneID(zone_short_name));
+	return ZoneLongName(ZoneID(zone_short_name), true);
 }
 
 std::string QuestManager::GetZoneLongNameByID(uint32 zone_id) {
-	return ZoneLongName(zone_id);
+	return ZoneLongName(zone_id, true);
 }
 
 std::string QuestManager::GetZoneShortName(uint32 zone_id) {
-	return ZoneName(zone_id);
+	return ZoneName(zone_id, true);
 }
 
 bool QuestManager::EnableRecipe(uint32 recipe_id)
@@ -3696,4 +3646,9 @@ const SPDat_Spell_Struct* QuestManager::getspell(uint32 spell_id) {
         return &spells[spell_id];
     }
     return nullptr;
+}
+
+std::string QuestManager::getenvironmentaldamagename(uint8 damage_type) {
+	std::string environmental_damage_name = EQ::constants::GetEnvironmentalDamageName(damage_type);
+	return environmental_damage_name;
 }
