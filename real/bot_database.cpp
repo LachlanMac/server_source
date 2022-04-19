@@ -322,18 +322,14 @@ bool BotDatabase::LoadBotID(const uint32 owner_id, const std::string& bot_name, 
 	return true;
 }
 
-bool BotDatabase::SaveExp(const uint32 bot_id, uint32 exp){
-	if (!bot_inst)
-		return false;
+bool BotDatabase::SaveExp(cBot* bot_inst){
 
 	query = StringFormat(
 		"UPDATE `bot_data`"
 		" SET"
-		" `exp` = '%u',"
-		" `aa_exp` = '%u'"
+		" `exp` = '%u'"
 		" WHERE `bot_id` = '%u'",
 		bot_inst->GetExperience(),
-		bot_inst->GetAAExperience(),
 		bot_inst->GetBotID()
 	);
 	auto results = database.QueryDatabase(query);

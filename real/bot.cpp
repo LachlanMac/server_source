@@ -1719,13 +1719,13 @@ bool Bot::SaveExp(){
 		uint32 bot_id = 0;
 		if (!database.botdb.SaveNewBot(this, bot_id) || !bot_id) {
 			bot_owner->Message(Chat::Red, "%s '%s'", BotDatabase::fail::SaveNewBot(), GetCleanName());
-			return false;
+			return false;	
 		}
 		SetBotID(bot_id);
 	}
 	else { // Update existing bot record
-		if (!database.botdb.SaveExp(bot_id, _experience)) {
-			bot_owner->Message(Chat::Red, "%s '%s'", BotDatabase::fail::SaveBot(), GetCleanName());
+		if (!database.botdb.SaveExp(this)) {
+			bot_owner->Message(Chat::Red, "%s '%s'", "Save exp for ", GetCleanName());
 			return false;
 		}
 	}
