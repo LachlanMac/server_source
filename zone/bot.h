@@ -695,8 +695,8 @@ private:
 	bool _altoutofcombatbehavior;
 	bool _showhelm;
 	bool _pauseAI;
-	bool _castdamageshield
-	bool _castslow
+	bool _castdamageshield;
+	bool _castslow;
 	uint8 _stopMeleeLevel;
 
 	// Private "base stats" Members
