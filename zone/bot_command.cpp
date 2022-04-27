@@ -1433,7 +1433,7 @@ int bot_command_init(void)
 		bot_command_add("expcheck", "Reports the experience needed to next level", 0, bot_command_exp) ||
 		bot_command_add("aacheck", "Reports the experience needed to next level", 0, bot_command_aa) ||
 		bot_command_add("ds", "Toggles the caster to use damage shield buffs or not", 0, bot_command_damageshield) ||
-		bot_command_add("slow", "Toggles the caster to use slow spells or not", 0, bot_command_damageshield)
+		bot_command_add("slow", "Toggles the caster to use slow spells or not", 0, bot_command_slow)
 	) {
 		bot_command_deinit();
 		return -1;
