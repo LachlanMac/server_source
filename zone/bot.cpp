@@ -3823,6 +3823,8 @@ bool Bot::Spawn(Client* botCharacterOwner) {
 		this->m_Position.x = botCharacterOwner->GetX();
 		this->m_Position.y = botCharacterOwner->GetY();
 		this->m_Position.z = botCharacterOwner->GetZ();
+		this->SetCastSlow(true);
+		this->SetCastDamageShield(true);
 
 		// Make the bot look at the bot owner
 		FaceTarget(botCharacterOwner);

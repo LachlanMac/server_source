@@ -2976,11 +2976,11 @@ void bot_command_slow(Client *c, const Seperator *sep){
 		c->Message(m_fail, "You must <target> a bot that you own to use this command");
 		return;
 	}
-	if(my_bot->GetCastDamageShield()){
-		my_bot->SetCastDamageShield(false);
+	if(my_bot->GetCastSlow()){
+		my_bot->SetCastSlow(false);
 		c->Message(m_note, "Bot will no longer cast slow spells");
 	}else{
-		my_bot->SetCastDamageShield(true);
+		my_bot->SetCastSlow(true);
 		c->Message(m_note, "Bot will now cast slow spells");
 	}
 	
