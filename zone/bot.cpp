@@ -1729,7 +1729,7 @@ bool Bot::SaveExp(){
 			return false;
 		}
 	}
-	return true;
+	return;
 }
 
 bool Bot::Save()
@@ -6045,6 +6045,9 @@ void Bot::TryBackstab(Mob *other, int ReuseTime) {
 	int tripleChance = (itembonuses.TripleBackstab + spellbonuses.TripleBackstab + aabonuses.TripleBackstab);
 	//always consider the rogue to be behind a target for face stabs
 	bIsBehind = true;
+	if(bIsBehind){
+		//do literally nothing because this is always true;
+	}
 	else {
 		int FrontalBSChance = (itembonuses.FrontalBackstabChance + spellbonuses.FrontalBackstabChance + aabonuses.FrontalBackstabChance);
 		if (FrontalBSChance && (FrontalBSChance > zone->random.Int(0, 100)))
