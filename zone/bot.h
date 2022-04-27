@@ -595,6 +595,10 @@ public:
 	int32 GetBaseMR() { return _baseMR; }
 	int32 GetBasePR() { return _basePR; }
 	int32 GetBaseDR() { return _baseDR; }
+	bool GetCastDamageShield() { return _castdamageshield; }
+	void SetCastDamageShield(bool castds) { _castdamageshield = castds; }
+	bool GetCastSlow() { return _castslow; }
+	void SetCastSlow(bool castslow) { _castslow = castslow; }
 	int32 GetBaseCorrup() { return _baseCorrup; }
 	uint32 GetExperience(){return _experience;}
 	uint32 GetAAExperience() {return _aaExperience;}
@@ -691,6 +695,8 @@ private:
 	bool _altoutofcombatbehavior;
 	bool _showhelm;
 	bool _pauseAI;
+	bool _castdamageshield
+	bool _castslow
 	uint8 _stopMeleeLevel;
 
 	// Private "base stats" Members

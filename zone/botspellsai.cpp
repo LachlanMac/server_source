@@ -600,8 +600,11 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 						case ARCHETYPE_CASTER:
 							//TODO: probably more caster specific spell effects in here
 							if(IsEffectInSpell(selectedBotSpell.SpellId, SE_AttackSpeed) || IsEffectInSpell(selectedBotSpell.SpellId, SE_ATK) ||
-								IsEffectInSpell(selectedBotSpell.SpellId, SE_STR) || IsEffectInSpell(selectedBotSpell.SpellId, SE_ReverseDS))
+								IsEffectInSpell(selectedBotSpell.SpellId, SE_STR))
 							{
+								continue;
+							}
+							if(IsEffectInSpell(selectedBotSpell.SpellId, SE_ReverseDS) || !this->GetCastDamageShield()){
 								continue;
 							}
 							break;
@@ -1104,13 +1107,15 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 						break;
 					}
 					case ENCHANTER: {
-						botSpell = GetBestBotSpellForMagicBasedSlow(this);
+						if(this->GetCastSlow())
+							botSpell = GetBestBotSpellForMagicBasedSlow(this);
 						break;
 					}
 					case SHAMAN:
 					case BEASTLORD: {
+						if(!this->GetCastSlow())
+							break;
 						botSpell = GetBestBotSpellForDiseaseBasedSlow(this);
-
 						if(botSpell.SpellId == 0 || ((tar->GetMR() - 50) < (tar->GetDR() + spells[botSpell.SpellId].resist_difficulty)))
 							botSpell = GetBestBotSpellForMagicBasedSlow(this);
 						break;

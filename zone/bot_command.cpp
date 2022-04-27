@@ -1431,7 +1431,9 @@ int bot_command_init(void)
 		bot_command_add("viewcombos", "Views bot race class combinations", 0, bot_command_view_combos) ||
 		bot_command_add("waterbreathing", "Orders a bot to cast a water breathing spell", 0, bot_command_water_breathing) ||
 		bot_command_add("expcheck", "Reports the experience needed to next level", 0, bot_command_exp) ||
-		bot_command_add("aacheck", "Reports the experience needed to next level", 0, bot_command_aa)
+		bot_command_add("aacheck", "Reports the experience needed to next level", 0, bot_command_aa) ||
+		bot_command_add("ds", "Toggles the caster to use damage shield buffs or not", 0, bot_command_damageshield) ||
+		bot_command_add("slow", "Toggles the caster to use slow spells or not", 0, bot_command_damageshield)
 	) {
 		bot_command_deinit();
 		return -1;
@@ -2949,6 +2951,40 @@ void bot_command_exp(Client *c, const Seperator *sep){
 	}
 }
 
+
+void bot_command_damageshield(Client *c, const Seperator *sep){
+
+	auto my_bot = ActionableBots::AsTarget_ByBot(c);
+	if (!my_bot) {
+		c->Message(m_fail, "You must <target> a bot that you own to use this command");
+		return;
+	}
+	if(my_bot->GetCastDamageShield()){
+		my_bot->SetCastDamageShield(false);
+		c->Message(m_note, "Bot will no longer cast damage shield spells");
+	}else{
+		my_bot->SetCastDamageShield(true);
+		c->Message(m_note, "Bot will now cast damage shield spells");
+	}
+	
+}
+
+void bot_command_slow(Client *c, const Seperator *sep){
+
+	auto my_bot = ActionableBots::AsTarget_ByBot(c);
+	if (!my_bot) {
+		c->Message(m_fail, "You must <target> a bot that you own to use this command");
+		return;
+	}
+	if(my_bot->GetCastDamageShield()){
+		my_bot->SetCastDamageShield(false);
+		c->Message(m_note, "Bot will no longer cast slow spells");
+	}else{
+		my_bot->SetCastDamageShield(true);
+		c->Message(m_note, "Bot will now cast slow spells");
+	}
+	
+}
 void bot_command_aa(Client *c, const Seperator *sep){
 	auto my_bot = ActionableBots::AsTarget_ByBot(c);
 	if (!my_bot) {
