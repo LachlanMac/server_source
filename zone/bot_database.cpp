@@ -322,7 +322,7 @@ bool BotDatabase::LoadBotID(const uint32 owner_id, const std::string& bot_name, 
 	return true;
 }
 
-bool BotDatabase::SaveExp(cBot* bot_inst){
+bool BotDatabase::SaveExp(Bot* bot_inst){
 
 	query = StringFormat(
 		"UPDATE `bot_data`"

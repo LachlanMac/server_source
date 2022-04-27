@@ -4,42 +4,65 @@ void command_killallnpcs(Client *c, const Seperator *sep)
 {
 	std::string search_string;
 	if (sep->arg[1]) {
-		search_string = sep->arg[1];
+		search_string = str_tolower(sep->arg[1]);
 	}
 
-	int       count = 0;
-	for (auto &itr : entity_list.GetMobList()) {
-		Mob *entity = itr.second;
-		if (!entity->IsNPC()) {
+	int killed_count = 0;
+
+	for (auto &e: entity_list.GetMobList()) {
+		auto *entity = e.second;
+		if (!entity || !entity->IsNPC()) {
 			continue;
 		}
 
-		std::string entity_name = entity->GetName();
-
-		/**
-		 * Filter by name
-		 */
-		if (search_string.length() > 0 && entity_name.find(search_string) == std::string::npos) {
+		std::string entity_name = str_tolower(entity->GetName());
+		if ((!search_string.empty() && entity_name.find(search_string) == std::string::npos) ||
+			!entity->IsAttackAllowed(c)) {
 			continue;
 		}
 
-		bool is_not_attackable =
-				 (
-					 entity->IsInvisible() ||
-					 !entity->IsAttackAllowed(c) ||
-					 entity->GetRace() == 127 ||
-					 entity->GetRace() == 240
-				 );
+		entity->Damage(
+			c,
+			entity->GetHP() + 1000,
+			SPELL_UNKNOWN,
+			EQ::skills::SkillDragonPunch
+		);
 
-		if (is_not_attackable) {
-			continue;
-		}
-
-		entity->Damage(c, 1000000000, 0, EQ::skills::SkillDragonPunch);
-
-		count++;
+		killed_count++;
 	}
 
-	c->Message(Chat::Yellow, "Killed (%i) npc(s)", count);
+	if (killed_count) {
+		c->Message(
+			Chat::White,
+			fmt::format(
+				"Killed {} NPC{}{}.",
+				killed_count,
+				killed_count != 1 ? "s" : "",
+				(
+					!search_string.empty() ?
+						fmt::format(
+							" that matched '{}'",
+							search_string
+						) :
+						""
+				)
+			).c_str()
+		);
+	}
+	else {
+		c->Message(
+			Chat::White,
+			fmt::format(
+				"There were no NPCs to kill{}.",
+				(
+					!search_string.empty() ?
+						fmt::format(
+							" that matched '{}'",
+							search_string
+						) :
+						""
+				)
+			).c_str()
+		);
+	}
 }
-
