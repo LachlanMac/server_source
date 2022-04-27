@@ -1729,7 +1729,7 @@ bool Bot::SaveExp(){
 			return false;
 		}
 	}
-	return;
+	return true;
 }
 
 bool Bot::Save()
