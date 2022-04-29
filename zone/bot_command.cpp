@@ -2925,17 +2925,11 @@ void bot_command_botgroup(Client *c, const Seperator *sep)
 }
 
 void bot_command_exp(Client *c, const Seperator *sep){
-
 	auto my_bot = ActionableBots::AsTarget_ByBot(c);
 	if (!my_bot) {
 		c->Message(m_fail, "You must <target> a bot that you own to use this command");
 		return;
 	}else{
-		//EXAMPLE === I am Level 3 And i have 11,000 EXP
-		//previous level= Exp to GET to level 3... WHICH IS 8000  (level - 1)^3 *1k
-		//current level = Exp to GET to level 4...which is 270000 (level)^3  * 1k 
-		//exp needed to level currentLevel - previousLevel, which is 19,000
-		//                                       19k us needed...and i have 11k - 8k into it ..so 3k...
 		int previousLevel = 0;
 		int nextLevel = 1000;
 		if(my_bot->GetLevel() == 1){
@@ -2946,8 +2940,8 @@ void bot_command_exp(Client *c, const Seperator *sep){
 		nextLevel = pow(my_bot->GetLevel(), 3) * 1000;
 		int expneeded = nextLevel - previousLevel;
 		int expinlevel = my_bot->GetExperience() - previousLevel;
-		float percentage = (float)(expinlevel) / (float)(expneeded);
-		c->Message(m_message, "Level %d  :  %d / %d exp   [ %4.2lf ]", my_bot->GetLevel(),expinlevel,expneeded,percentage);
+		float percentage = (float)(expinlevel) / (float)(expneeded) * 100;
+		c->Message(m_message, "Level %d  :  %d / %d exp   [ %4.2lf %]", my_bot->GetLevel(),expinlevel,expneeded,percentage);
 	}
 }
 
