@@ -1749,6 +1749,7 @@ bool Bot::Save()
 		SetBotID(bot_id);
 	}
 	else { // Update existing bot record
+		SetLevelFromExperience();  //lets make sure the level is up to date on the save list
 		if (!database.botdb.SaveBot(this)) {
 			bot_owner->Message(Chat::Red, "%s '%s'", BotDatabase::fail::SaveBot(), GetCleanName());
 			return false;
@@ -9977,11 +9978,31 @@ void Bot::LoadAAs() {
 }
 
 void Bot::SetLevelFromExperience(){
-	SetLevel((int)cbrt(_experience / 1000) + 1);
+
+	int level = (int)cbrt(_experience / 1000) + 1;
+	if(level > 60){
+		level = 60;
+	}
+	SetLevel(level);
 }
 
 void Bot::AddExperience(uint exp){
 	
+
+	int leveldiff = GetLevel() - GetOwner()->CastToClient()->GetLevel();
+	float highmod = 1.0f;
+	if(leveldiff > 0){
+		if(leveldiff == 1){
+			highmod = 0.8f;
+		}else if(leveldiff == 2){
+			highmod = 0.5f;
+		}else if(leveldiff == 3){
+			highmod = 0.2f;
+		}else{
+			highmod = 0.0f;
+		}
+	}
+
 	_killedmobs++;
 	int add_exp = exp;
 	float totalmod = 1.0;
@@ -10013,6 +10034,10 @@ void Bot::AddExperience(uint exp){
 		add_exp *= RuleR(Character, FinalExpMultiplier);
 	}
 
+	add_exp *= highmod;
+	if(add_exp == 0){
+		return;
+	}
 	if(GetLevel() >= 49){
 		int aaExp = float(_aaPercentage / 100) * add_exp ;
 		_aaExperience+=aaExp;
@@ -10024,7 +10049,10 @@ void Bot::AddExperience(uint exp){
 	//check for level up...
 	int32 newLevel = (int)cbrt(_experience / 1000) + 1;
 	if(newLevel != GetLevel()){
-			if(newLevel <= GetOwner()->CastToClient()->GetLevel()) {
+			if(newLevel > 60){
+				//dont level, we are at the max
+			}
+			else { //allow the bot to be higher level
 				SetLevel(newLevel);
 				SetPetChooser(false); // not sure what this does, but was in bot 'update' code
 				CalcBotStats(GetOwner()->CastToClient()->GetBotOption(Client::booStatsUpdate));

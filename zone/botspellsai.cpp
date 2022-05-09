@@ -110,7 +110,8 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 				if(HasGroup()) {
 					isPrimaryHealer = IsGroupHealer();
 				}
-
+				//if the health of the target is less than 75, if the target is the client and its less than 75, or its a bard...
+				
 				if(hpr < 75 || (tar->IsClient() && (hpr < 75)) || (botClass == BARD)) {
 					if(tar->GetClass() == NECROMANCER) {
 						// Give necromancers a chance to go lifetap something or cleric can spend too much mana on a necro
@@ -126,12 +127,12 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 						}
 					}
 
-					// Evaluate the situation
-					if((IsEngaged()) && ((botClass == CLERIC) || (botClass == DRUID) || (botClass == SHAMAN) || (botClass == PALADIN))) {
+					// Evaluate the situation because we are engaged
+					if((IsEngaged()) && ((botClass == CLERIC) || (botClass == DRUID) || (botClass == SHAMAN) || (botClass == PALADIN)) {
 						if(tar->GetTarget() && tar->GetTarget()->GetHateTop() && tar->GetTarget()->GetHateTop() == tar) {
 							hasAggro = true;
 						}
-
+					
 						if(hpr < 20) {
 							botSpell = GetBestBotSpellForFastHeal(this);
 							if (botSpell.SpellId == 0)
@@ -407,6 +408,18 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 							//No one needs a heal.
 						}
 					}
+					else if((IsEngaged()) && ((botClass == RANGER) || (botClass == BEASTLORD)){  //this is a function for patch heals
+						if(tar->GetTarget() && tar->GetTarget()->GetHateTop() && tar->GetTarget()->GetHateTop() == tar) {
+							hasAggro = true;
+						}
+						if(hpr < 15 && hasAggro) {
+							botSpell = GetBestBotSpellForFastHeal(this);
+							if (botSpell.SpellId == 0)
+								botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
+							if (botSpell.SpellId == 0)
+								botSpell = GetFirstBotSpellForSingleTargetHeal(this);
+						}
+					}
 					else if ((botClass == CLERIC) || (botClass == DRUID) || (botClass == SHAMAN) || (botClass == PALADIN)) {
 						
 						if(GetNumberNeedingHealedInGroup(40, true) >= 2){
@@ -440,7 +453,7 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 							botSpell = GetBestBotSpellForRegularSingleTargetHeal(this);
 
 						else {
-							if (hpr < 85 && !tar->FindType(SE_HealOverTime)) {
+							if (hpr < 80 && !tar->FindType(SE_HealOverTime)) {
 								if (tar->GetClass() == WARRIOR || tar->GetClass() == SHADOWKNIGHT || tar->GetClass() == PALADIN) {
 									botSpell = GetBestBotSpellForHealOverTime(this);
 								}
@@ -1039,6 +1052,13 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 					}
 				}
 				else {
+
+					if(GetClass() == DRUID || GetClass() == SHAMAN){
+						if(!GetCastDot()){
+							break;
+						}
+					}
+
 					std::list<BotSpell> dotList = GetBotSpellsBySpellType(this, SpellType_DOT);
 
 					const int maxDotSelect = 5;

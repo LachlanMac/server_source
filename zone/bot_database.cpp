@@ -636,9 +636,11 @@ bool BotDatabase::SaveNewBot(Bot* bot_inst, uint32& bot_id)
 }
 
 bool BotDatabase::SaveBot(Bot* bot_inst)
-{
+{	
 	if (!bot_inst)
 		return false;
+
+	
 
 	query = StringFormat(
 		"UPDATE `bot_data`"

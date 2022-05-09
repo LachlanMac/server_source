@@ -1433,7 +1433,8 @@ int bot_command_init(void)
 		bot_command_add("expcheck", "Reports the experience needed to next level", 0, bot_command_exp) ||
 		bot_command_add("aacheck", "Reports the experience needed to next level", 0, bot_command_aa) ||
 		bot_command_add("ds", "Toggles the caster to use damage shield buffs or not", 0, bot_command_damageshield) ||
-		bot_command_add("slow", "Toggles the caster to use slow spells or not", 0, bot_command_slow)
+		bot_command_add("slow", "Toggles the caster to use slow spells or not", 0, bot_command_slow) ||
+		bot_command_add("dot", "Toggles the caster to use dot spells or not", 0, bot_command_dot)
 	) {
 		bot_command_deinit();
 		return -1;
@@ -2979,6 +2980,25 @@ void bot_command_slow(Client *c, const Seperator *sep){
 	}
 	
 }
+
+
+void bot_command_dot(Client *c, const Seperator *sep){
+
+	auto my_bot = ActionableBots::AsTarget_ByBot(c);
+	if (!my_bot) {
+		c->Message(m_fail, "You must <target> a bot that you own to use this command");
+		return;
+	}
+	if(my_bot->GetCastDot()){
+		my_bot->SetCastDot(false);
+		c->Message(m_note, "Bot will no longer cast dot spells");
+	}else{
+		my_bot->SetCastDot(true);
+		c->Message(m_note, "Bot will now cast dot spells");
+	}
+	
+}
+
 void bot_command_aa(Client *c, const Seperator *sep){
 	auto my_bot = ActionableBots::AsTarget_ByBot(c);
 	if (!my_bot) {

@@ -600,6 +600,8 @@ void bot_command_exp(Client *c, const Seperator *sep);
 void bot_command_aa(Client *c, const Seperator *sep);
 void bot_command_damageshield(Client *c, const Seperator *sep);
 void bot_command_slow(Client *c, const Seperator *sep);
+void bot_command_dot(Client *c, const Seperator *sep);
+
 
 
 // bot subcommands

@@ -595,6 +595,9 @@ public:
 	int32 GetBaseMR() { return _baseMR; }
 	int32 GetBasePR() { return _basePR; }
 	int32 GetBaseDR() { return _baseDR; }
+
+	bool GetCastDot() { return _castdot; }
+	void SetCastDot(bool castdot) { _castdot = castdot; }
 	bool GetCastDamageShield() { return _castdamageshield; }
 	void SetCastDamageShield(bool castds) { _castdamageshield = castds; }
 	bool GetCastSlow() { return _castslow; }
@@ -697,6 +700,7 @@ private:
 	bool _pauseAI;
 	bool _castdamageshield;
 	bool _castslow;
+	bool _castdot;
 	uint8 _stopMeleeLevel;
 
 	// Private "base stats" Members
