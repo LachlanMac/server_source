@@ -9994,13 +9994,13 @@ void Bot::AddExperience(uint exp, uint8 conlevel){
 	float highmod = 1.0f;
 	if(leveldiff > 0){
 		if(leveldiff == 1){
-			highmod = 0.8f;
+			highmod = 0.9f;
 		}else if(leveldiff == 2){
-			highmod = 0.5f;
+			highmod = 0.8f;
 		}else if(leveldiff == 3){
-			highmod = 0.2f;
-		}else{
-			highmod = 0.0f;
+			highmod = 0.7f;
+		}else if(leveldiff > 3 && level diff < {
+			highmod = 0.5f;
 		}
 	}
 
@@ -10072,10 +10072,11 @@ void Bot::AddExperience(uint exp, uint8 conlevel){
 	int aaLevel = CalculateAAPoints();
 	int aaLevelTwo = aaLevel;
 	if(GetLevel() >= 51){
-		int aaExp = float(GetAAPercentage() / 100) * add_exp ;
-		_aaExperience+=aaExp;
+		int aaExp = float((float)GetAAPercentage() / 100.0f) * add_exp ;
+		_aaExperience+= float(aaExp) / 100f;
 		_experience+=(add_exp - aaExp);
 		aaLevelTwo = CalculateAAPoints();
+		//GetOwner()->CastToClient()->Message(m_note, "GAINING AA POINTS %u  because percentage is %u", aaExp, GetAAPercentage());
 	}else{
 		_experience+= add_exp;
 	}
@@ -10114,7 +10115,7 @@ uint32 Bot::CalculateAAPoints(){
 
 	//212615373  is the level of a 59 bot
 
-	return 10 + GetAAExperience() / 50000000;  //23976503;  //seems like a good number for AAs lol
+	return 10 + (GetAAExperience() / 239765);  //23976503;  //seems like a good number for AAs lol
 }
 
 uint8 Bot::spell_casting_chances[SPELL_TYPE_COUNT][PLAYER_CLASS_COUNT][EQ::constants::STANCE_TYPE_COUNT][cntHSND] = { 0 };

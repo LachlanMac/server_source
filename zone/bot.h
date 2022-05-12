@@ -604,7 +604,7 @@ public:
 	void SetCastSlow(bool castslow) { _castslow = castslow; }
 	int32 GetBaseCorrup() { return _baseCorrup; }
 	uint32 GetExperience(){return _experience;}
-	uint32 GetAAExperience() {return _aaExperience;}
+	uint64 GetAAExperience() {return _aaExperience;}
 	uint32 CalculateAAPoints();
 	uint32 GetAAPercentage() {return _aaPercentage;}
 	float GetConModifier();
@@ -724,7 +724,7 @@ private:
 	uint8 _baseGender;	// Bots gender. Necessary to preserve the original value otherwise it can be changed by illusions.
 	// Bot Leveling Variables
 	uint32 _experience;
-	uint32 _aaExperience;
+	uint64 _aaExperience;
 	uint32 _aaPercentage;
 	uint8 _killedmobs;
 	// Class Methods
