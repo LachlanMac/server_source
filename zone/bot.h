@@ -596,7 +596,7 @@ public:
 	int32 GetBasePR() { return _basePR; }
 	int32 GetBaseDR() { return _baseDR; }
 
-	bool 	() { return _castdot; }
+	bool GetCastDot() { return _castdot; }
 	void SetCastDot(bool castdot) { _castdot = castdot; }
 	bool GetCastDamageShield() { return _castdamageshield; }
 	void SetCastDamageShield(bool castds) { _castdamageshield = castds; }

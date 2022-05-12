@@ -9987,36 +9987,6 @@ void Bot::SetLevelFromExperience(){
 }
 
 
-float Bot::GetConLevelModifierPercent(uint8 conlevel)
-{
-	switch (conlevel)
-	{
-	case CON_GRAY:
-		return 0.15f;
-		break;
-	case CON_GREEN:
-		return (float)RuleI(Character, GreenModifier) / 100;
-		break;
-	case CON_LIGHTBLUE:
-		return (float)RuleI(Character, LightBlueModifier) / 100;
-		break;
-	case CON_BLUE:
-		return (float)RuleI(Character, BlueModifier) / 100;
-		break;
-	case CON_WHITE:
-		return (float)RuleI(Character, WhiteModifier) / 100;
-		break;
-	case CON_YELLOW:
-		return (float)RuleI(Character, YellowModifier) / 100;
-		break;
-	case CON_RED:
-		return (float)RuleI(Character, RedModifier) / 100;
-		break;
-	default:
-		return 0;
-	}
-}
-
 void Bot::AddExperience(uint exp, uint8 conlevel){
 	
 
@@ -10059,30 +10029,28 @@ void Bot::AddExperience(uint exp, uint8 conlevel){
 			switch (conlevel)
 			{
 			case CON_GRAY:
-				add_exp = in_add_exp * 0.15f;
+				add_exp = add_exp * 0.15f;
 				return 0;
 			case CON_GREEN:
-				add_exp = in_add_exp * RuleI(Character, GreenModifier) / 100;
+				add_exp = add_exp * RuleI(Character, GreenModifier) / 100;
 				break;
 			case CON_LIGHTBLUE:
-				add_exp = in_add_exp * RuleI(Character, LightBlueModifier)/100;
+				add_exp = add_exp * RuleI(Character, LightBlueModifier)/100;
 				break;
 			case CON_BLUE:
-				add_exp = in_add_exp * RuleI(Character, BlueModifier)/100;
+				add_exp = add_exp * RuleI(Character, BlueModifier)/100;
 				break;
 			case CON_WHITE:
-				add_exp = in_add_exp * RuleI(Character, WhiteModifier)/100;
+				add_exp = add_exp * RuleI(Character, WhiteModifier)/100;
 				break;
 			case CON_YELLOW:
-				add_exp = in_add_exp * RuleI(Character, YellowModifier)/100;
+				add_exp = add_exp * RuleI(Character, YellowModifier)/100;
 				break;
 			case CON_RED:
-				add_exp = in_add_exp * RuleI(Character, RedModifier)/100;
+				add_exp = add_exp * RuleI(Character, RedModifier)/100;
 				break;
 			}	
 	}
-
-	
 
 	if (RuleB(Zone, LevelBasedEXPMods)) {
 		if (zone->level_exp_mod[GetLevel()].ExpMod) {
