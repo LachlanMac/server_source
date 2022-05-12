@@ -9999,7 +9999,7 @@ void Bot::AddExperience(uint exp, uint8 conlevel){
 			highmod = 0.85f;
 		}else if(leveldiff == 3){
 			highmod = 0.75f;
-		}else if(leveldiff > 3 && level diff < 7){
+		}else if(leveldiff > 3 && leveldiff < 7){
 			highmod = 0.55f;
 		}else{
 			highmod = 0.25f;
