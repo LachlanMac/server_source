@@ -10030,7 +10030,7 @@ void Bot::AddExperience(uint exp, uint8 conlevel){
 			{
 			case CON_GRAY:
 				add_exp = add_exp * 0.15f;
-				return 0;
+				break;
 			case CON_GREEN:
 				add_exp = add_exp * RuleI(Character, GreenModifier) / 100;
 				break;
@@ -10081,11 +10081,9 @@ void Bot::AddExperience(uint exp, uint8 conlevel){
 	}
 
 	if(aaLevel != aaLevelTwo){
-		SetLevel(newLevel);
-		SetPetChooser(false); // not sure what this does, but was in bot 'update' code
 		CalcBotStats(GetOwner()->CastToClient()->GetBotOption(Client::booStatsUpdate));
 		SendLevelAppearance();
-		SendAppearancePacket(AT_WhoLevel, newLevel, true, true); // who level change
+		SendAppearancePacket(AT_WhoLevel, GetLevel(), true, true); // who level change
 	}
 	//check for level up...
 	int32 newLevel = (int)cbrt(_experience / 1000) + 1;
