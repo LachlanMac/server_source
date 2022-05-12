@@ -598,6 +598,7 @@ void bot_command_water_breathing(Client *c, const Seperator *sep);
 //Bot exp Commands
 void bot_command_exp(Client *c, const Seperator *sep);
 void bot_command_aa(Client *c, const Seperator *sep);
+void bot_command_aa_exp(Client *c, const Seperator *sep);
 void bot_command_damageshield(Client *c, const Seperator *sep);
 void bot_command_slow(Client *c, const Seperator *sep);
 void bot_command_dot(Client *c, const Seperator *sep);

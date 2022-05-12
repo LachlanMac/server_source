@@ -1083,7 +1083,7 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 				exp = exp * GetConLevelModifierPercent(conlevel);
 			}
 			exp = exp * zoneexpmod;
-			cmember->AddExperience(exp);
+			cmember->AddExperience(exp, conlevel);
 		}				
 	}
 	#endif	

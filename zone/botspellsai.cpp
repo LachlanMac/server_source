@@ -128,7 +128,7 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 					}
 
 					// Evaluate the situation because we are engaged
-					if((IsEngaged() && ( (botClass == CLERIC) || (botClass == DRUID) || (botClass == SHAMAN) || (botClass == PALADIN) ) {
+					if(IsEngaged() && ( (botClass == CLERIC) || (botClass == DRUID) || (botClass == SHAMAN) || (botClass == PALADIN))   ) {
 						if(tar->GetTarget() && tar->GetTarget()->GetHateTop() && tar->GetTarget()->GetHateTop() == tar) {
 							hasAggro = true;
 						}
@@ -408,7 +408,7 @@ bool Bot::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes) {
 							//No one needs a heal.
 						}
 					}
-					else if((IsEngaged()) && ((botClass == RANGER) || (botClass == BEASTLORD)){  //this is a function for patch heals
+					else if(IsEngaged() && ((botClass == RANGER) || (botClass == BEASTLORD))){  //this is a function for patch heals
 						if(tar->GetTarget() && tar->GetTarget()->GetHateTop() && tar->GetTarget()->GetHateTop() == tar) {
 							hasAggro = true;
 						}

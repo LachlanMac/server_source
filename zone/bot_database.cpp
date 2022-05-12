@@ -327,9 +327,11 @@ bool BotDatabase::SaveExp(Bot* bot_inst){
 	query = StringFormat(
 		"UPDATE `bot_data`"
 		" SET"
-		" `exp` = '%u'"
+		" `exp` = '%u',"
+		" `aa_exp` = '%u'"
 		" WHERE `bot_id` = '%u'",
 		bot_inst->GetExperience(),
+		bot_inst->GetAAExperience(),
 		bot_inst->GetBotID()
 	);
 	auto results = database.QueryDatabase(query);

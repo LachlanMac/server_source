@@ -596,7 +596,7 @@ public:
 	int32 GetBasePR() { return _basePR; }
 	int32 GetBaseDR() { return _baseDR; }
 
-	bool GetCastDot() { return _castdot; }
+	bool 	() { return _castdot; }
 	void SetCastDot(bool castdot) { _castdot = castdot; }
 	bool GetCastDamageShield() { return _castdamageshield; }
 	void SetCastDamageShield(bool castds) { _castdamageshield = castds; }
@@ -607,7 +607,8 @@ public:
 	uint32 GetAAExperience() {return _aaExperience;}
 	uint32 CalculateAAPoints();
 	uint32 GetAAPercentage() {return _aaPercentage;}
-	void AddExperience(uint32 exp);
+	float GetConModifier();
+	void AddExperience(uint32 exp, uint8 conlevel);
 	void SetExperience(uint32 experience){_experience = experience;}
 	void SetAAExperience(uint32 experience){_aaExperience = experience;}
 	void SetAAPercentage(uint32 percentage){_aaPercentage = percentage;}

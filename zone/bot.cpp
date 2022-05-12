@@ -9940,7 +9940,7 @@ void Bot::LoadAAs() {
 
 void Bot::LoadAAs() {
 	
-	int base_points = 20 + CalculateAAPoints();
+	int base_points = CalculateAAPoints();
 	aa_ranks.clear();
 	int id = 0;
 	int points = 0;
@@ -9986,7 +9986,38 @@ void Bot::SetLevelFromExperience(){
 	SetLevel(level);
 }
 
-void Bot::AddExperience(uint exp){
+
+float Bot::GetConLevelModifierPercent(uint8 conlevel)
+{
+	switch (conlevel)
+	{
+	case CON_GRAY:
+		return 0.15f;
+		break;
+	case CON_GREEN:
+		return (float)RuleI(Character, GreenModifier) / 100;
+		break;
+	case CON_LIGHTBLUE:
+		return (float)RuleI(Character, LightBlueModifier) / 100;
+		break;
+	case CON_BLUE:
+		return (float)RuleI(Character, BlueModifier) / 100;
+		break;
+	case CON_WHITE:
+		return (float)RuleI(Character, WhiteModifier) / 100;
+		break;
+	case CON_YELLOW:
+		return (float)RuleI(Character, YellowModifier) / 100;
+		break;
+	case CON_RED:
+		return (float)RuleI(Character, RedModifier) / 100;
+		break;
+	default:
+		return 0;
+	}
+}
+
+void Bot::AddExperience(uint exp, uint8 conlevel){
 	
 
 	int leveldiff = GetLevel() - GetOwner()->CastToClient()->GetLevel();
@@ -10023,7 +10054,36 @@ void Bot::AddExperience(uint exp){
 	add_exp = uint32(float(add_exp) * totalmod * zemmod);
 
 	//if XP scaling is based on the con of a monster, do that now.
+	if(RuleB(Character,UseXPConScaling))
+	{
+			switch (conlevel)
+			{
+			case CON_GRAY:
+				add_exp = in_add_exp * 0.15f;
+				return 0;
+			case CON_GREEN:
+				add_exp = in_add_exp * RuleI(Character, GreenModifier) / 100;
+				break;
+			case CON_LIGHTBLUE:
+				add_exp = in_add_exp * RuleI(Character, LightBlueModifier)/100;
+				break;
+			case CON_BLUE:
+				add_exp = in_add_exp * RuleI(Character, BlueModifier)/100;
+				break;
+			case CON_WHITE:
+				add_exp = in_add_exp * RuleI(Character, WhiteModifier)/100;
+				break;
+			case CON_YELLOW:
+				add_exp = in_add_exp * RuleI(Character, YellowModifier)/100;
+				break;
+			case CON_RED:
+				add_exp = in_add_exp * RuleI(Character, RedModifier)/100;
+				break;
+			}	
+	}
+
 	
+
 	if (RuleB(Zone, LevelBasedEXPMods)) {
 		if (zone->level_exp_mod[GetLevel()].ExpMod) {
 			add_exp *= zone->level_exp_mod[GetLevel()].ExpMod;
@@ -10034,20 +10094,37 @@ void Bot::AddExperience(uint exp){
 		add_exp *= RuleR(Character, FinalExpMultiplier);
 	}
 
+	//in_add_exp = uint32(float(in_add_exp) * totalmod * zemmod);
+
 	add_exp *= highmod;
 	if(add_exp == 0){
 		return;
 	}
-	if(GetLevel() >= 49){
-		int aaExp = float(_aaPercentage / 100) * add_exp ;
+
+	int aaLevel = CalculateAAPoints();
+	int aaLevelTwo = aaLevel;
+	if(GetLevel() >= 51){
+		int aaExp = float(GetAAPercentage() / 100) * add_exp ;
 		_aaExperience+=aaExp;
 		_experience+=(add_exp - aaExp);
+		aaLevelTwo = CalculateAAPoints();
 	}else{
 		_experience+= add_exp;
 	}
 
+	if(aaLevel != aaLevelTwo){
+		SetLevel(newLevel);
+		SetPetChooser(false); // not sure what this does, but was in bot 'update' code
+		CalcBotStats(GetOwner()->CastToClient()->GetBotOption(Client::booStatsUpdate));
+		SendLevelAppearance();
+		SendAppearancePacket(AT_WhoLevel, newLevel, true, true); // who level change
+	}
 	//check for level up...
 	int32 newLevel = (int)cbrt(_experience / 1000) + 1;
+
+	//check for AA level up
+	
+
 	if(newLevel != GetLevel()){
 			if(newLevel > 60){
 				//dont level, we are at the max
@@ -10065,13 +10142,13 @@ void Bot::AddExperience(uint exp){
 		this->SaveExp();
 		_killedmobs = 0;
 	}
-
 }
 
-uint32 Bot::CalculateAAPoints(){
-	
-	return GetAAExperience() / 50000000;  //seems like a good number for AAs lol
+uint32 Bot::CalculateAAPoints(){      
 
+	//212615373  is the level of a 59 bot
+
+	return 10 + GetAAExperience() / 50000000;  //23976503;  //seems like a good number for AAs lol
 }
 
 uint8 Bot::spell_casting_chances[SPELL_TYPE_COUNT][PLAYER_CLASS_COUNT][EQ::constants::STANCE_TYPE_COUNT][cntHSND] = { 0 };
