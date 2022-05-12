@@ -9994,13 +9994,15 @@ void Bot::AddExperience(uint exp, uint8 conlevel){
 	float highmod = 1.0f;
 	if(leveldiff > 0){
 		if(leveldiff == 1){
-			highmod = 0.9f;
+			highmod = 0.95f;
 		}else if(leveldiff == 2){
-			highmod = 0.8f;
+			highmod = 0.85f;
 		}else if(leveldiff == 3){
-			highmod = 0.7f;
-		}else if(leveldiff > 3 && level diff < {
-			highmod = 0.5f;
+			highmod = 0.75f;
+		}else if(leveldiff > 3 && level diff < 7){
+			highmod = 0.55f;
+		}else{
+			highmod = 0.25f;
 		}
 	}
 
@@ -10054,7 +10056,7 @@ void Bot::AddExperience(uint exp, uint8 conlevel){
 
 	if (RuleB(Zone, LevelBasedEXPMods)) {
 		if (zone->level_exp_mod[GetLevel()].ExpMod) {
-			add_exp *= zone->level_exp_mod[GetLevel()].ExpMod;
+			add_exp *= zone->level_exp_mod[GetLevel()].ExpMod;	
 		}
 	}
 
@@ -10073,7 +10075,7 @@ void Bot::AddExperience(uint exp, uint8 conlevel){
 	int aaLevelTwo = aaLevel;
 	if(GetLevel() >= 51){
 		int aaExp = float((float)GetAAPercentage() / 100.0f) * add_exp ;
-		_aaExperience+= float(aaExp) / 100f;
+		_aaExperience+= float(aaExp) / 100.0f;
 		_experience+=(add_exp - aaExp);
 		aaLevelTwo = CalculateAAPoints();
 		//GetOwner()->CastToClient()->Message(m_note, "GAINING AA POINTS %u  because percentage is %u", aaExp, GetAAPercentage());
