@@ -3020,12 +3020,8 @@ void bot_command_claim(Client *c, const Seperator *sep){
 		return;
 	}
 	std::string bot_name = sep->arg[1];
-
-	uint32 bot_id = 0;
-	if (!database.botdb.Claim(bot_name, c->AccountID(), c->CharacterID())) {
-		c->Message(m_fail, "%s for '%s'", "Could not claim bot ", bot_name.c_str());
-		return;
-	}
+	c->Message(m_note, "Attempting to claim bot:%s",bot_name.c_str());
+	database.botdb.Claim(bot_name.c_str(), c->AccountID(), c->CharacterID());
 }
 
 void bot_command_aa(Client *c, const Seperator *sep){

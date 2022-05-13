@@ -353,32 +353,32 @@ bool BotDatabase::Claim(std::string bot_name, uint32 account_id, uint32 characte
 		" FROM `bot_data`"
 		" WHERE `name` = '%s'"
 		" LIMIT 1",
-		bot_name);
+		bot_name.c_str());
 	auto results = database.QueryDatabase(query);
 	if (!results.Success())
 		return false;
 	if (!results.RowCount())
-		return true;
+		return false;
 	auto row = results.begin();
-	int char_id = atoi(row[1]);
-	int bot_id = atoi(row[2]);
+	int char_id = atoi(row[0]);
+	int bot_id = atoi(row[1]);
 
 	//GET the account_id over the owner of this bot
 	query = StringFormat(
 		"SELECT"
 		" `account_id`" //row 1
 		" FROM `character_data`"
-		" WHERE `character_id` = '%u'"
+		" WHERE `id` = '%u'"
 		" LIMIT 1",
 		char_id);
 	
 	auto results2 = database.QueryDatabase(query);
 	if (!results2.Success())
-		return false;
+			return false;
 	if (!results2.RowCount())
-		return true;
+		return false;
 	auto row2 = results2.begin();
-	int acc_id = atoi(row2[1]); //we now have the account id
+	int acc_id = atoi(row2[0]); //we now have the account id
 
 	if(account_id != acc_id){ //this account owns this bot, lets claim it
 		return false;
@@ -389,7 +389,7 @@ bool BotDatabase::Claim(std::string bot_name, uint32 account_id, uint32 characte
 		" `owner_id` = '%u'"
 		" WHERE `bot_id` = '%u'",
 		character_id,
-		bot_id,	
+		bot_id
 	);
 	auto results3 = database.QueryDatabase(query);
 	if (!results3.Success())
