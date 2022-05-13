@@ -602,8 +602,8 @@ void bot_command_aa_exp(Client *c, const Seperator *sep);
 void bot_command_damageshield(Client *c, const Seperator *sep);
 void bot_command_slow(Client *c, const Seperator *sep);
 void bot_command_dot(Client *c, const Seperator *sep);
-
-
+void bot_command_claim(Client *c, const Seperator *sep);
+void bot_command_getaas(Client *c, const Seperator *sep);
 
 // bot subcommands
 void bot_subcommand_bot_appearance(Client *c, const Seperator *sep);

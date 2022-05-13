@@ -1432,9 +1432,11 @@ int bot_command_init(void)
 		bot_command_add("waterbreathing", "Orders a bot to cast a water breathing spell", 0, bot_command_water_breathing) ||
 		bot_command_add("expcheck", "Reports the experience needed to next level", 0, bot_command_exp) ||
 		bot_command_add("aacheck", "Reports the experience needed to next level", 0, bot_command_aa) ||
+		bot_command_add("getaas", "Gets the AAs, or at least tries.", 0, bot_command_getaas) ||
 		bot_command_add("ds", "Toggles the caster to use damage shield buffs or not", 0, bot_command_damageshield) ||
 		bot_command_add("slow", "Toggles the caster to use slow spells or not", 0, bot_command_slow) ||
-		bot_command_add("dot", "Toggles the caster to use dot spells or not", 0, bot_command_dot)
+		bot_command_add("dot", "Toggles the caster to use dot spells or not", 0, bot_command_dot) ||
+		bot_command_add("claim", "Claims a bot from your account to this character", 0, bot_command_claim)
 	) {
 		bot_command_deinit();
 		return -1;
@@ -2925,6 +2927,23 @@ void bot_command_botgroup(Client *c, const Seperator *sep)
 	helper_send_available_subcommands(c, "bot-group", subcommand_list);
 }
 
+//bot_command_getaas
+void bot_command_getaas(Client *c, const Seperator *sep){
+	auto my_bot = ActionableBots::AsTarget_ByBot(c);
+	if (!my_bot) {
+		c->Message(m_fail, "You must <target> a bot that you own to use this command");
+		return;
+	}else{
+		
+
+
+
+		
+		c->Message(m_message, "Level %d  :  %d / %d exp   [ %4.2lf %]", my_bot->GetLevel(),expinlevel,expneeded,percentage);
+	}
+}
+
+
 void bot_command_exp(Client *c, const Seperator *sep){
 	auto my_bot = ActionableBots::AsTarget_ByBot(c);
 	if (!my_bot) {
@@ -2997,6 +3016,22 @@ void bot_command_dot(Client *c, const Seperator *sep){
 		c->Message(m_note, "Bot will now cast dot spells");
 	}
 	
+}
+
+
+void bot_command_claim(Client *c, const Seperator *sep){
+	
+	if (sep->arg[1][0] == '\0' || sep->IsNumber(1)) {
+		c->Message(m_fail, "You must specify a [name] to use this command");
+		return;
+	}
+	std::string bot_name = sep->arg[1];
+
+	uint32 bot_id = 0;
+	if (!database.botdb.Claim(bot_name, c->AccountID(), c->CharacterID())) {
+		c->Message(m_fail, "%s for '%s'", "Could not claim bot ", bot_name.c_str());
+		return;
+	}
 }
 
 void bot_command_aa(Client *c, const Seperator *sep){
@@ -5935,6 +5970,10 @@ void bot_subcommand_bot_inspect_message(Client *c, const Seperator *sep)
 		c->Message(m_action, "%s %i of your spawned bot inspect messages", set_flag ? "Set" : "Cleared", bot_count);
 	}
 }
+
+
+
+
 
 void bot_subcommand_bot_list(Client *c, const Seperator *sep)
 {

@@ -1078,12 +1078,9 @@ void Group::SplitExp(uint32 exp, Mob* other) {
 			uint32 tmp = (cmember->GetLevel()+3) * (cmember->GetLevel()+3) * 75 * 35 / 10;
 			uint32 tmp2 = groupexp / membercount;
 			uint32 exp = tmp < tmp2 ? tmp : tmp2;
-			if (RuleB(Character, UseXPConScaling))
-			{
-				exp = exp * GetConLevelModifierPercent(conlevel);
-			}
+			int cl = Mob::GetLevelCon(maxlevel, cmember->GetLevel());
 			exp = exp * zoneexpmod;
-			cmember->AddExperience(exp, conlevel);
+			cmember->AddExperience(exp, cl);
 		}				
 	}
 	#endif	
