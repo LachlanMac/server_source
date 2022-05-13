@@ -2933,14 +2933,8 @@ void bot_command_getaas(Client *c, const Seperator *sep){
 	if (!my_bot) {
 		c->Message(m_fail, "You must <target> a bot that you own to use this command");
 		return;
-	}else{
-		
-
-
-
-		
-		c->Message(m_message, "Level %d  :  %d / %d exp   [ %4.2lf %]", my_bot->GetLevel(),expinlevel,expneeded,percentage);
 	}
+	
 }
 
 
