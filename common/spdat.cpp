@@ -266,7 +266,8 @@ bool IsInvisSpell(uint16 spell_id)
 		IsEffectInSpell(spell_id, SE_Invisibility2) ||
 		IsEffectInSpell(spell_id, SE_InvisVsUndead) ||
 		IsEffectInSpell(spell_id, SE_InvisVsUndead2) ||
-		IsEffectInSpell(spell_id, SE_InvisVsAnimals)) {
+		IsEffectInSpell(spell_id, SE_InvisVsAnimals) ||
+		IsEffectInSpell(spell_id, SE_ImprovedInvisAnimals)) {
 		return true;
 	}
 	return false;
@@ -363,10 +364,19 @@ bool IsImprovedDamageSpell(uint16 spell_id)
 
 bool IsAEDurationSpell(uint16 spell_id)
 {
-	if (IsValidSpell(spell_id) &&
-			(spells[spell_id].target_type == ST_AETarget || spells[spell_id].target_type == ST_UndeadAE) &&
-			spells[spell_id].aoe_duration != 0)
+	/*
+		There are plenty of spells with aoe_duration set at single digit numbers, but these
+		do not act as duration effects.
+	*/
+	if (IsValidSpell(spell_id) && 
+		spells[spell_id].aoe_duration >= 2500 &&
+		(	spells[spell_id].target_type == ST_AETarget || 
+			spells[spell_id].target_type == ST_UndeadAE ||
+			spells[spell_id].target_type == ST_AECaster ||
+			spells[spell_id].target_type == ST_Ring)
+		) {
 		return true;
+	}
 
 	return false;
 }
@@ -1455,11 +1465,39 @@ bool IsInstrumentModAppliedToSpellEffect(int32 spell_id, int effect)
 		case SE_BardSongRange:
 		case SE_TemporaryPets:
 		case SE_SpellOnDeath:
+		case SE_Invisibility:
+		case SE_Invisibility2:
+		case SE_InvisVsUndead:
+		case SE_InvisVsUndead2:
+		case SE_InvisVsAnimals:
+		case SE_ImprovedInvisAnimals:
+		case SE_SeeInvis:
+		case SE_Levitate:
+		case SE_WaterBreathing:
+		case SE_ModelSize:
+		case SE_ChangeHeight:
 			return false;
 		default:
 			return true;
 	}
 	//Allowing anything not confirmed to be restricted / allowed to receive modifiers, as to not inhbit anyone making custom bard songs.
+}
+
+bool IsPulsingBardSong(int32 spell_id)
+{
+	if (!IsValidSpell(spell_id)) {
+		return false;
+	}
+	
+	if (spells[spell_id].buff_duration == 0xFFFF ||
+		spells[spell_id].recast_time> 0 ||
+		spells[spell_id].mana > 0 || 
+		IsEffectInSpell(spell_id, SE_TemporaryPets) || 
+		IsEffectInSpell(spell_id, SE_Familiar)) {
+		return false;
+	}
+	
+	return true;
 }
 
 int GetSpellStatValue(uint32 spell_id, const char* stat_identifier, uint8 slot)
@@ -1609,19 +1647,19 @@ uint32 GetProcLimitTimer(int32 spell_id, int proc_type) {
 	bool use_next_timer = false;
 	for (int i = 0; i < EFFECT_COUNT; ++i) {
 
-		if (proc_type == SE_WeaponProc) {
+		if (proc_type == ProcType::MELEE_PROC) {
 			if (spells[spell_id].effect_id[i] == SE_WeaponProc || spells[spell_id].effect_id[i] == SE_AddMeleeProc) {
 				use_next_timer = true;
 			}
 		}
 
-		if (proc_type == SE_RangedProc) {
+		if (proc_type == ProcType::RANGED_PROC) {
 			if (spells[spell_id].effect_id[i] == SE_RangedProc) {
 				use_next_timer = true;
 			}
 		}
 
-		if (proc_type == SE_DefensiveProc) {
+		if (proc_type == ProcType::DEFENSIVE_PROC) {
 			if (spells[spell_id].effect_id[i] == SE_DefensiveProc) {
 				use_next_timer = true;
 			}
@@ -1670,4 +1708,16 @@ bool CastRestrictedSpell(int spellid)
 		default:
 			return false;
 	}
+}
+
+bool IgnoreCastingRestriction(int32 spell_id) {
+	/*
+		field 'cast_not_standing' allows casting when sitting, stunned, mezed, Divine Aura, through SPA 343 Interrupt casting
+		Likely also allows for casting while feared, but need to confirm. Possibly also while charmed.
+		This field also allows for damage to ignore DA immunity.
+	*/
+	if (spells[spell_id].cast_not_standing) {
+		return true;
+	}
+	return false;
 }

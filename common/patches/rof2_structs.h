@@ -3061,7 +3061,7 @@ struct EnvDamage2_Struct {
 /*0006*/	uint32 damage;
 /*0010*/	float unknown10;	// New to Underfoot - Seen 1
 /*0014*/	uint8 unknown14[12];
-/*0026*/	uint8 dmgtype;		// FA = Lava; FC = Falling
+/*0026*/	uint8 dmgtype; // FA = Lava, FB = Drowning, FC = Falling, FD = Trap
 /*0027*/	uint8 unknown27[4];
 /*0031*/	uint16 unknown31;	// New to Underfoot - Seen 66
 /*0033*/	uint16 constant;		// Always FFFF
@@ -5216,6 +5216,11 @@ struct SayLinkBodyFrame_Struct {
 /*043*/	char OrnamentIcon[5];
 /*048*/	char Hash[8];
 /*056*/
+};
+
+struct Checksum_Struct {
+    uint64_t checksum;
+    uint8_t  data[2048];
 };
 
 	}; /*structs*/

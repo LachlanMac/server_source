@@ -448,6 +448,7 @@ struct ManaChange_Struct
 /*08*/	uint32	spell_id;
 /*12*/	uint8	keepcasting;	// won't stop the cast. Change mana while casting?
 /*13*/	uint8	padding[3];		// client doesn't read it, garbage data seems like
+/*16*/	int32	slot;			// -1 normal, otherwise clear ETA and GCD
 };
 
 struct SwapSpell_Struct
@@ -2761,7 +2762,7 @@ struct EnvDamage2_Struct {
 /*0004*/	uint16 unknown4;
 /*0006*/	uint32 damage;
 /*0010*/	uint8 unknown10[12];
-/*0022*/	uint8 dmgtype; //FA = Lava; FC = Falling
+/*0022*/	uint8 dmgtype; // FA = Lava, FB = Drowning, FC = Falling, FD = Trap
 /*0023*/	uint8 unknown2[4];
 /*0027*/	uint16 constant; //Always FFFF
 /*0029*/	uint16 unknown29;
@@ -5579,6 +5580,11 @@ struct SayLinkBodyFrame_Struct {
 /*043*/	char OrnamentIcon[5];
 /*048*/	char Hash[8];
 /*056*/
+};
+
+struct Checksum_Struct {
+    uint64 checksum;
+    uint8  data[2048];
 };
 
 struct UpdateMovementEntry {

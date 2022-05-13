@@ -716,7 +716,7 @@ bool Database::SaveCharacterCreate(uint32 character_id, uint32 account_id, Playe
         /* HoTT Ability */
         if(RuleB(Character, GrantHoTTOnCreate))
         {
-                query = StringFormat("INSERT INTO `character_leadership_abilities` (id, slot, rank) VALUES (%u, %i, %i)", character_id, 14, 1);
+                query = StringFormat("INSERT INTO `character_leadership_abilities` (id, slot, `rank`) VALUES (%u, %i, %i)", character_id, 14, 1);
                 results = QueryDatabase(query);
         }
 
@@ -995,6 +995,18 @@ bool Database::SetVariable(const std::string varname, const std::string &varvalu
 
 	LoadVariables(); // refresh cache
 	return true;
+}
+
+void Database::SetAccountCRCField(uint32 account_id, std::string field_name, uint64 checksum)
+{
+	QueryDatabase(
+		fmt::format(
+			"UPDATE `account` SET `{}` = '{}' WHERE `id` = {}",
+			field_name,
+			checksum,
+			account_id
+		)
+	);
 }
 
 // Get zone starting points from DB
@@ -2285,7 +2297,7 @@ void Database::SetIPExemption(std::string account_ip, int exemption_amount) {
 		auto row = results.begin();
 		exemption_id = atoi(row[0]);
 	}
-	
+
 	query = fmt::format(
 		"INSERT INTO `ip_exemptions` (`exemption_ip`, `exemption_amount`) VALUES ('{}', {})",
 		account_ip,
