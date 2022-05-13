@@ -119,7 +119,6 @@ EQ::Random          emu_random;
 volatile bool       RunLoops   = true;
 uint32              numclients = 0;
 uint32              numzones   = 0;
-bool                holdzones  = false;
 const WorldConfig   *Config;
 EQEmuLogSys         LogSys;
 WorldContentService content_service;
@@ -503,6 +502,11 @@ int main(int argc, char **argv)
 
 	LogInfo("Initializing [EventScheduler]");
 	event_scheduler.SetDatabase(&database)->LoadScheduledEvents();
+
+	LogInfo("Initializing [WorldContentService]");
+	content_service.SetDatabase(&database)
+		->SetExpansionContext()
+		->ReloadContentFlags();
 
 	LogInfo("Initializing [SharedTaskManager]");
 	shared_task_manager.SetDatabase(&database)
